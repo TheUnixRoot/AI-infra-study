@@ -1,0 +1,137 @@
+# Bloque B1.3: Profiling con NVIDIA Nsight Systems (nsys) y Linux perf
+**Estudio de Sistemas GPU: Pipeline CPU-GPU, Memoria Pinned, Fusión de Kernels y NVTX**
+
+---
+
+## 1. Especificaciones del Hardware Destino
+
+| Parámetro de Arquitectura | Valor Hardware (NVIDIA GeForce GTX 1050) |
+| :--- | :--- |
+| **Microarquitectura** | Pascal (GP107) |
+| **Compute Capability** | `sm_61` |
+| **Streaming Multiprocessors (SMs)** | 5 SMs (640 CUDA Cores FP32) |
+| **VRAM Total** | 2048 MB (2.0 GB) GDDR5 |
+| **Ancho de Banda Teórico VRAM** | **~112.0 GB/s** (128-bit @ ~7.008 Gbps) |
+| **Caché L2 Global** | 1024 KB (1.0 MB) |
+| **Bus Host-Device** | PCIe 3.0 x16 (Límite teórico ~15.75 GB/s, efectivo ~11.5 - 12.5 GB/s) |
+| **Umbral de Seguridad VRAM** | < 256 MB por tensor para evitar OOM |
+
+---
+
+## 2. Anatomía de los 3 Antipatrones y Soluciones de Arquitectura
+
+```
+            +-------------------------------------------------------------+
+            |                    MODO BAD (Antipatrones)                  |
+            |                                                             |
+   Host     | [Pageable Mem] --(Memcpy)--> [Pinned Buffer] --(DMA Sync)-> |
+            |                              ^                              |
+   CPU-GPU  | CPU bloqueada esperando DMA  |                              |
+            |                                                             |
+   GPU Kern | [Kernel 1] -> [Kernel 2] -> ... -> [Kernel 200]             |
+            | 200 launches independientes, DRAM roundtrips (No L2 reuse) |
+            |                                                             |
+   Sync     | [ .item() ] ===> cudaStreamSynchronize (Pipeline Stall)     |
+            | CPU y GPU completamente serializadas (Gaps gigantes en timeline)
+            +-------------------------------------------------------------+
+
+            +-------------------------------------------------------------+
+            |                     MODO OPT (Optimizado)                   |
+            |                                                             |
+   Host     | [Pinned Memory (Page-locked)] ----(Async DMA non_blocking)->|
+            |                              ^                              |
+   CPU-GPU  | CPU encola trabajo asíncrono sin bloquearse                |
+            |                                                             |
+   GPU Kern | [ triton_poi_fused_relu_add_mul ]                           |
+            | 1 único kernel fused (torch.compile / Inductor) en registros|
+            |                                                             |
+   Sync     | [ loss += step_loss ] (GPU Tensor, ZERO Sync en bucle)      |
+            | Sincronización diferida fuera del bucle de entrenamiento    |
+            +-------------------------------------------------------------+
+```
+
+### A. Antipatrón A: `.item()` en el Bucle Caliente (Pipeline Bubble)
+- **Causa Raíz**: PyTorch despacha operaciones a una cola de comandos asíncrona (`cudaStream_t`). Invocar `.item()`, `float(t)` o `t.tolist()` en cada iteración fuerza un `cudaStreamSynchronize` / `cudaMemcpy(D2H)` síncrono.
+- **Impacto**: La CPU se bloquea hasta que la GPU termine todo el trabajo en cola y transfiera el escalar de vuelta. Esto destruye el solapamiento (*pipelining*) CPU-GPU, generando burbujas donde los SMs permanecen ociosos esperando que el hilo de Python despache el siguiente lote.
+- **Solución**: Mantener las métricas y pérdidas como tensores en el dispositivo (`total_loss += step_loss.detach()`). La llamada a `.item()` se realiza una sola vez al final del experimento o periódicamente cada $N$ pasos.
+
+### B. Antipatrón B: Transferencia H2D sin Memoria Pinned ni Asíncrona
+- **Causa Raíz**: La memoria reservada por defecto en CPU es **paginable** (*pageable virtual memory*). El motor DMA de la GPU no puede leer con seguridad desde memoria paginable porque el kernel del sistema operativo podría reubicar o paginar esas páginas a disco en cualquier instante.
+- **Impacto**: El driver CUDA debe realizar una doble copia:
+  1. Copia física de la memoria paginable a un búfer intermedio *pinned* (staging buffer) en CPU mediante `memcpy`.
+  2. Emisión de la transferencia DMA por el bus PCIe de forma síncrona (`cudaMemcpy`), bloqueando el hilo de ejecución de Python.
+- **Solución**: Asignar memoria de host bloqueada en páginas físicas (`torch.empty(..., pin_memory=True)` o `.pin_memory()`) y transferir con `.to(device, non_blocking=True)`. Permite transferencias directas sobre PCIe vía `cudaMemcpyAsync` solapadas con la ejecución de kernels.
+
+### C. Antipatrón C: 200 Operaciones Element-wise Diminutas sin Fusionar
+- **Causa Raíz**: Encadenar 200 operaciones aritméticas (`x = relu(x * a + b)`) sin compilar genera 200 llamadas `cudaLaunchKernel` consecutivas (`at::native::elementwise_kernel`).
+- **Impacto**:
+  1. *Driver Launch Overhead*: ~3.5 µs de sobrecarga por kernel $\times 200 \approx 700\text{ µs}$ de latencia CPU solo en despachos.
+  2. *Saturación de DRAM GDDR5*: Para una matriz de 16 MiB ($2048 \times 2048$ FP32), cada kernel lee 16 MiB y escribe 16 MiB. 200 kernels generan $200 \times 32\text{ MiB} \approx 6.4\text{ GB}$ de tráfico DRAM. Como la caché L2 de la GTX 1050 es de 1024 KB, se satura de inmediato y se convierte en un cuello de botella puramente de ancho de banda.
+- **Solución**: Fusión de operadores mediante `torch.compile` (PyTorch 2.x Inductor). Fusiona toda la secuencia en un único kernel (*pointwise loop*). Los valores intermedios se mantienen en los **registros de los SMs**, realizando solo 1 lectura y 1 escritura a DRAM (32 MiB totales vs 6.4 GB).
+
+---
+
+## 3. Instrumentación NVTX y Profiling de Sistema
+
+### A. Anotación con NVTX (`torch.cuda.nvtx`)
+El script [`b1_3_antipatterns.py`](file:///data/data/com.termux/files/home/raiz/AI-infra-study/b1_3_profiling/b1_3_antipatterns.py) anota cada etapa:
+```python
+# Delimitación de transferencia PCIe
+torch.cuda.nvtx.range_push("H2D_Transfer")
+gpu_tensor = host_tensor.to(device, non_blocking=True)
+torch.cuda.nvtx.range_pop()
+
+# Delimitación de cómputo
+torch.cuda.nvtx.range_push("Compute_Fused_Kernel")
+gpu_tensor = fused_fn(gpu_tensor)
+torch.cuda.nvtx.range_pop()
+```
+
+### B. Comando de Perfilado con `nsys`
+```bash
+nsys profile \
+  --trace=cuda,nvtx,osrt \
+  --stats=true \
+  --force-overwrite=true \
+  -o ../artifacts/b1_3_profile \
+  python3 b1_3_antipatterns.py --mode bad
+```
+- `--trace=cuda,nvtx,osrt`: Captura llamadas CUDA API, eventos NVTX y tiempos de runtime del SO.
+- `--stats=true`: Extrae automáticamente al finalizar las tablas estadísticas `cuda_api_sum` y `cuda_gpu_kern_sum`.
+
+---
+
+## 4. Instrucciones de Ejecución (en Host con GTX 1050)
+
+```bash
+cd b1_3_profiling
+
+# 1. Smoke test rápido (< 30s)
+./run.sh --smoke-test
+
+# 2. Benchmark completo (Tensor 2048x2048, 20 iteraciones, 200 ops)
+./run.sh
+
+# 3. Ayuda y parámetros configurables
+./run.sh --help
+```
+
+### Inspección Gráfica de Trazas
+```bash
+nsys-ui ../artifacts/b1_3_bad.nsys-rep &
+nsys-ui ../artifacts/b1_3_opt.nsys-rep &
+```
+
+---
+
+## 5. Rendimiento Esperado (GTX 1050 sm_61)
+
+Tensor FP32 de $2048 \times 2048$ ($16.0\text{ MiB}$), 200 operaciones element-wise:
+
+| Métrica / Fase | Modo BAD (Antipatrones) | Modo OPT (Optimizado) | Factor de Mejora (Speedup) | Mecanismo de Aceleración |
+| :--- | :---: | :---: | :---: | :--- |
+| **Transferencia H2D** | ~4.12 ms | ~1.46 ms | **2.82x** | Pinned memory + DMA directo PCIe 3.0 x16 |
+| **Element-wise Compute** | ~95.80 ms | ~0.49 ms | **~195.5x** | Fusión de kernel (de 6.4 GB DRAM a registros de SM) |
+| **Sincronización (.item)** | ~0.28 ms | ~0.005 ms | **~56.0x** | Acumulación asíncrona en GPU, 0 sync en hot loop |
+| **Latencia Total por Paso** | **~100.20 ms** | **~1.95 ms** | **~51.4x** | Pipelining continuo CPU-GPU |
+| **Kernel Launches por Paso** | 200 launches | 1 launch | **200x menos** | Reducción drástica de sobrecarga en driver CUDA |

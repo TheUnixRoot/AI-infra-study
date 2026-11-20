@@ -7,9 +7,10 @@
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${SCRIPT_DIR}"
 
-ARTIFACTS_DIR="${SCRIPT_DIR}/artifacts"
+ARTIFACTS_DIR="${ROOT_DIR}/artifacts"
 METRICS_FILE="${ARTIFACTS_DIR}/b1_1_metrics.json"
 PYTHON_SCRIPT="${SCRIPT_DIR}/b1_1_strides_bench.py"
 

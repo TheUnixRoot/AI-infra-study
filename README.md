@@ -23,18 +23,24 @@ Repositorio reproducible de ingeniería de sistemas GPU enfocado en la jerarquí
 
 ```
 AI-infra-study/
-├── b1_1_strides_bench.py      # B1.1: PyTorch Strides, VRAM Views vs Contiguous Copy
-├── run.sh                     # Runner idempotente para B1.1
-├── artifacts/                 # Salidas JSON/CSV de benchmarks
-│   ├── b1_1_metrics.json
-│   ├── b1_2_results.json
-│   └── b1_2_results.csv
-└── b1_2_cuda_gemm/            # B1.2: CUDA C++ Nativo (Coalescencia, Tiling y Warp Shuffles)
-    ├── gemm_bench.cu
-    ├── warp_online_softmax.cu
-    ├── Makefile
-    ├── run.sh
-    └── README.md
+├── b1_1_strides/              # B1.1: PyTorch Strides, VRAM Views vs Contiguous Copy
+│   ├── b1_1_strides_bench.py
+│   ├── run.sh
+│   └── README.md
+├── b1_2_cuda_gemm/            # B1.2: CUDA C++ Nativo (Coalescencia, Tiling y Warp Shuffles)
+│   ├── gemm_bench.cu
+│   ├── warp_online_softmax.cu
+│   ├── Makefile
+│   ├── run.sh
+│   └── README.md
+├── b1_3_profiling/            # B1.3: Profiling con nsys y Linux perf (Antipatrones y NVTX)
+│   ├── b1_3_antipatterns.py
+│   ├── run.sh
+│   └── README.md
+└── artifacts/                 # Salidas JSON/CSV y trazas generadas en runtime
+    ├── b1_1_metrics.json
+    ├── b1_2_results.json
+    └── b1_2_results.csv
 ```
 
 ---
@@ -42,6 +48,8 @@ AI-infra-study/
 ## Bloque B1.1: Strides y Jerarquía de Memoria en PyTorch
 
 Estudio del impacto de la memoria discontinua y el coste de reordenamiento físico en VRAM frente a modificaciones de descriptores de metadatos.
+
+Para teoría detallada y microarquitectura, consulta [`b1_1_strides/README.md`](file:///data/data/com.termux/files/home/raiz/AI-infra-study/b1_1_strides/README.md).
 
 ### Conceptos Clave
 1. **OOM Safety**: Tensor FP32 de $2048 \times 2048 = 16.0\text{ MiB} \ll 64\text{ MB}$ (umbral de seguridad para 2GB VRAM).
@@ -52,6 +60,8 @@ Estudio del impacto de la memoria discontinua y el coste de reordenamiento físi
 ### Instrucciones de Ejecución (B1.1)
 
 ```bash
+cd b1_1_strides
+
 # 1. Smoke Test rápido (< 30s)
 ./run.sh --smoke-test
 
@@ -136,3 +146,37 @@ nvcc -O3 -arch=sm_61 warp_online_softmax.cu -o warp_online_softmax
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | Standard 3-Pass | 3 lecturas DRAM + Warp Shuffles | ~0.118 ms | ~71.1 GB/s | 1.00x | PASS [OK] |
 | Online 1-Pass | 1 lectura DRAM + Registros + Warp Shuffles | ~0.089 ms | ~94.3 GB/s | **1.33x** | PASS [OK] |
+
+---
+
+## Bloque B1.3: Profiling con NVIDIA Nsight Systems (nsys) y Linux perf
+
+Estudio empírico de cuellos de botella en el pipeline CPU-GPU: serialización por `.item()`, transferencias H2D síncronas paginables vs pinned DMA, y sobrecarga de kernel launches vs fusión con `torch.compile`.
+
+Para teoría detallada, microarquitectura y análisis NVTX, consulta la documentación dedicada del módulo en [`b1_3_profiling/README.md`](file:///data/data/com.termux/files/home/raiz/AI-infra-study/b1_3_profiling/README.md).
+
+### Instrucciones de Ejecución (B1.3)
+
+```bash
+cd b1_3_profiling
+
+# 1. Smoke test rápido (< 30s)
+./run.sh --smoke-test
+
+# 2. Benchmark completo con nsys y Linux perf
+./run.sh
+
+# 3. Opciones configurables
+./run.sh --help
+```
+
+### Resumen de Resultados Esperados (GTX 1050 / sm_61)
+
+| Métrica / Fase | Modo BAD (Antipatrones) | Modo OPT (Optimizado) | Factor de Mejora | Mecanismo |
+| :--- | :---: | :---: | :---: | :--- |
+| **H2D Transfer** | ~4.12 ms | ~1.46 ms | **2.82x** | Pinned DMA directo PCIe |
+| **Element-wise Compute** | ~95.80 ms | ~0.49 ms | **~195.5x** | Fusión de kernel (Inductor) en registros |
+| **Sync (.item)** | ~0.28 ms | ~0.005 ms | **~56.0x** | Acumulación asíncrona en GPU |
+| **Latencia por Paso** | **~100.20 ms** | **~1.95 ms** | **~51.4x** | Pipelining continuo CPU-GPU |
+| **Kernel Launches** | 200 launches | 1 launch | **200x menos** | Cero saturación de despacho |
+
