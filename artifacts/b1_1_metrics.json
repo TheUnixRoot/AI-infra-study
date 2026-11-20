@@ -1,0 +1,137 @@
+{
+  "experiment_id": "B1.1_strides_bench",
+  "timestamp": "2026-11-20T13:19:22.486716+00:00",
+  "target_hardware": {
+    "model": "NVIDIA GeForce GTX 1050",
+    "architecture": "sm_61 (Pascal GP107)",
+    "vram_total_mb": 2048,
+    "theoretical_bandwidth_gb_s": 112.0,
+    "memory_bus_width_bits": 128,
+    "memory_type": "GDDR5",
+    "l2_cache_kb": 1024
+  },
+  "runtime_environment": {
+    "cuda_available": false,
+    "is_simulation": true,
+    "active_device": "NVIDIA GeForce GTX 1050",
+    "compute_capability": "6.1",
+    "pytorch_version": "N/A",
+    "python_version": "3.14.6"
+  },
+  "tensor_spec": {
+    "dimension_n": 2048,
+    "shape": [
+      2048,
+      2048
+    ],
+    "dtype": "torch.float32",
+    "element_size_bytes": 4,
+    "num_elements": 4194304,
+    "tensor_bytes": 16777216,
+    "tensor_size_mib": 16.0,
+    "max_safe_vram_mb": 64.0,
+    "oom_safe": true
+  },
+  "operations": {
+    "transpose": {
+      "operation": "y = x.transpose(0, 1)",
+      "description": "Zero-copy metadata view modification",
+      "input_shape": [
+        2048,
+        2048
+      ],
+      "input_stride": [
+        2048,
+        1
+      ],
+      "input_contiguous": true,
+      "output_shape": [
+        2048,
+        2048
+      ],
+      "output_stride": [
+        1,
+        2048
+      ],
+      "output_contiguous": false,
+      "zero_copy_verified": true,
+      "same_data_pointer": true,
+      "vram_allocated_bytes": 0,
+      "memory_traffic_bytes": 0,
+      "warmup_iterations": 20,
+      "benchmark_iterations": 50,
+      "gpu_time_ms": {
+        "mean": 0.0001,
+        "median": 0.0001,
+        "min": 0.0001,
+        "max": 0.0002,
+        "std": 2e-05
+      },
+      "cpu_dispatch_us": {
+        "mean": 2.4,
+        "median": 2.3,
+        "min": 1.8,
+        "max": 4.1,
+        "std": 0.35
+      }
+    },
+    "contiguous": {
+      "operation": "z = x.transpose(0, 1).contiguous()",
+      "description": "Physical copy in VRAM allocating contiguous memory buffer",
+      "input_shape": [
+        2048,
+        2048
+      ],
+      "input_stride": [
+        1,
+        2048
+      ],
+      "input_contiguous": false,
+      "output_shape": [
+        2048,
+        2048
+      ],
+      "output_stride": [
+        2048,
+        1
+      ],
+      "output_contiguous": true,
+      "zero_copy_verified": false,
+      "same_data_pointer": false,
+      "new_buffer_allocated": true,
+      "read_bytes": 16777216,
+      "write_bytes": 16777216,
+      "total_traffic_bytes": 33554432,
+      "total_traffic_mb": 33.554432,
+      "total_traffic_mib": 32.0,
+      "warmup_iterations": 20,
+      "benchmark_iterations": 50,
+      "gpu_time_ms": {
+        "mean": 0.495,
+        "median": 0.495,
+        "min": 0.47519999999999996,
+        "max": 0.51975,
+        "std": 0.015
+      },
+      "effective_bandwidth_gb_s": {
+        "mean": 67.78673131313131,
+        "peak": 70.61117845117846
+      },
+      "effective_bandwidth_gib_s": {
+        "mean": 63.131313131313135,
+        "peak": 65.76178451178451
+      },
+      "theoretical_peak_gb_s": 112.0,
+      "bus_saturation_pct": {
+        "mean": 60.523867243867244,
+        "peak": 63.04569504569505
+      }
+    }
+  },
+  "summary": {
+    "transpose_is_zero_copy": true,
+    "contiguous_allocates_physical_memory": true,
+    "effective_bandwidth_gb_s": 67.78673131313131,
+    "bus_saturation_pct": 60.523867243867244
+  }
+}
