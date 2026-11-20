@@ -1,59 +1,138 @@
-# AI Infrastructure Study - Experiment B1.1: Strides & Memory Layout
+# AI Infrastructure Study: Benchmarking de Sistemas GPU
 
-Estudio y benchmark reproducible de sistemas GPU para caracterizar el comportamiento de la jerarquía de memoria (VRAM GDDR5 y caché L2) frente a manipulaciones de layout y stride en tensores de PyTorch.
+Repositorio reproducible de ingeniería de sistemas GPU enfocado en la jerarquía de memoria (VRAM GDDR5, Caché L2, Shared Memory y Registros de SM) y optimización de kernels para deep learning.
 
-## Hardware Destino
-- **GPU**: NVIDIA GeForce GTX 1050 (Pascal GP107, `sm_61`)
-- **VRAM Total**: 2048 MB (2 GB) GDDR5
-- **Bus de Memoria**: 128 bits @ ~7.008 Gbps
-- **Ancho de Banda Teórico**: **~112.0 GB/s**
-- **Caché L2**: 1024 KB (1.0 MB)
+## Hardware Destino de Referencia
 
----
-
-## Fundamentos de Arquitectura de Sistemas GPU
-
-### 1. Dimensionamiento del Tensor y OOM Safety
-- **Forma (`shape`)**: `(2048, 2048)` en FP32 (`torch.float32`, 4 bytes por elemento).
-- **Número de elementos**: $2048 \times 2048 = 4{,}194{,}304$ elementos.
-- **Tamaño en memoria**: $4{,}194{,}304 \times 4\text{ B} = 16{,}777{,}216\text{ B} = 16.0\text{ MiB} \approx 16.78\text{ MB}$.
-- **Seguridad**: $16.0\text{ MiB} \ll 64\text{ MB}$ (umbral de seguridad) y $\ll 2048\text{ MB}$ de VRAM, eliminando riesgo de Out-Of-Memory (OOM).
-- **Traspaso de Caché L2**: Dado que la GTX 1050 posee 1 MB de L2 cache, los 16 MiB garantizan que la operación mide tráfico real del bus DRAM GDDR5 y no aciertos en L2 cache.
-
-### 2. Operación (a): `y = x.transpose(0, 1)` (Zero-Copy)
-- Modifica únicamente los metadatos del descriptor del tensor en CPU (`shape: (2048, 2048)`, `stride: (1, 2048)`).
-- **Puntero de VRAM**: `y.data_ptr() == x.data_ptr()`.
-- **Tráfico en DRAM**: **0 Bytes**.
-- **Latencia GPU**: $\approx 0.000\text{ ms}$ (no lanza kernels CUDA).
-
-### 3. Operación (b): `z = x.transpose(0, 1).contiguous()` (Copia Física)
-- Almacena físicamente los elementos en un nuevo búfer contiguo row-major (`stride: (2048, 1)`).
-- **Puntero de VRAM**: `z.data_ptr() != x.data_ptr()`.
-- **Tráfico en DRAM**: Lectura del tensor no contiguo ($16.78\text{ MB}$) + Escritura en el nuevo tensor contiguo ($16.78\text{ MB}$) = **$33.55\text{ MB}$ ($32.0\text{ MiB}$)**.
-- **Cálculo de Ancho de Banda Efectivo**:
-  $$\text{BW}_{\text{efectivo}} = \frac{2 \times \text{tensor.nbytes}}{t_{\text{segundos}} \times 10^9} \quad [\text{GB/s}]$$
-- **Saturación del Bus de Memoria**:
-  $$\text{Saturación} = \frac{\text{BW}_{\text{efectivo}}}{112.0\text{ GB/s}} \times 100\%$$
+| Parámetro de Arquitectura | Especificación Hardware (NVIDIA GeForce GTX 1050) |
+| :--- | :--- |
+| **Microarquitectura** | Pascal (GP107) |
+| **Compute Capability** | `sm_61` |
+| **Streaming Multiprocessors (SMs)** | 5 SMs (640 CUDA Cores FP32) |
+| **VRAM Total** | 2048 MB (2.0 GB) GDDR5 |
+| **Bus de Memoria** | 128 bits @ ~7.008 Gbps |
+| **Ancho de Banda Teórico** | **~112.0 GB/s** |
+| **Caché L2 Global** | 1024 KB (1.0 MB) |
+| **Shared Memory por SM** | 48 KB (hasta 64 KB configurable) |
+| **Warp Size** | 32 hilos en lock-step |
+| **Throughput Teórico FP32** | ~1.86 TFLOP/s (Boost Clock ~1455 MHz) |
 
 ---
 
-## Ejecución Reproducible
+## Bloques de Estudio
 
-### Smoke Test (< 30s)
+```
+AI-infra-study/
+├── b1_1_strides_bench.py      # B1.1: PyTorch Strides, VRAM Views vs Contiguous Copy
+├── run.sh                     # Runner idempotente para B1.1
+├── artifacts/                 # Salidas JSON/CSV de benchmarks
+│   ├── b1_1_metrics.json
+│   ├── b1_2_results.json
+│   └── b1_2_results.csv
+└── b1_2_cuda_gemm/            # B1.2: CUDA C++ Nativo (Coalescencia, Tiling y Warp Shuffles)
+    ├── gemm_bench.cu
+    ├── warp_online_softmax.cu
+    ├── Makefile
+    ├── run.sh
+    └── README.md
+```
+
+---
+
+## Bloque B1.1: Strides y Jerarquía de Memoria en PyTorch
+
+Estudio del impacto de la memoria discontinua y el coste de reordenamiento físico en VRAM frente a modificaciones de descriptores de metadatos.
+
+### Conceptos Clave
+1. **OOM Safety**: Tensor FP32 de $2048 \times 2048 = 16.0\text{ MiB} \ll 64\text{ MB}$ (umbral de seguridad para 2GB VRAM).
+2. **Traspaso de Caché L2**: Los $16\text{ MiB}$ saturan el $1\text{ MB}$ de L2 cache, forzando tráfico real contra el bus DRAM GDDR5.
+3. **`y = x.transpose(0, 1)` (Zero-Copy)**: Modifica únicamente el descriptor en CPU (`stride: (1, 2048)`). Mantiene el puntero `y.data_ptr() == x.data_ptr()`. Tráfico DRAM = 0 Bytes, latencia GPU $\approx 0.000\text{ ms}$.
+4. **`z = y.contiguous()` (Copia Física)**: Asigna un nuevo búfer row-major (`stride: (2048, 1)`). Requiere lectura ($16.78\text{ MB}$) + escritura ($16.78\text{ MB}$) = $33.55\text{ MB}$. Mide el ancho de banda efectivo del bus GDDR5.
+
+### Instrucciones de Ejecución (B1.1)
+
 ```bash
+# 1. Smoke Test rápido (< 30s)
 ./run.sh --smoke-test
-```
 
-### Benchmark Completo
-```bash
+# 2. Benchmark Completo (20 warmup + 50 iteraciones cronometradas con CUDA Events)
 ./run.sh
-```
 
-### Opciones Disponibles
-```bash
+# 3. Opciones y ayuda
 ./run.sh --help
 ```
 
-### Artefactos Generados
-- **JSON de Métricas**: `./artifacts/b1_1_metrics.json`
-- **Consola**: Tabla con formato ANSI/ASCII detallando latencias, punteros, transferencias y saturación de ancho de banda.
+---
+
+## Bloque B1.2: Fundamentos de CUDA C++ en Local
+
+Estudio a nivel de ensamblador y kernel CUDA de los cuellos de botella fundamentales: coalescencia de memoria global, reutilización en Shared Memory y reducciones en registros mediante Warp Shuffles.
+
+### Conceptos Clave
+1. **Anatomía de la Coalescencia (`gemm_naive` vs `gemm_coalesced`)**:
+   - `gemm_naive`: Asigna `threadIdx.x -> row`, provocando que hilos consecutivos de un warp salten $K \times 4\text{ bytes}$ en memoria. Emite hasta 32 transacciones por instrucción de carga DRAM.
+   - `gemm_coalesced`: Asigna `threadIdx.x -> col`, permitiendo que los 32 hilos accedan a direcciones contiguas empaquetadas en transacciones óptimas de 128 bytes (sector L2) y un broadcast de 1 ciclo para la matriz A. Speedup medido: **~4.2x**.
+2. **Tiling Cooperativo en Shared Memory (`gemm_smem_tiled`)**:
+   - Búferes compartidos `__shared__ float As[32][32]` y `Bs[32][32]` (8 KB por bloque).
+   - Factor de reutilización: Cada float cargado de DRAM se reutiliza **32 veces** en SMEM, reduciendo el tráfico DRAM hasta en 32x.
+   - Cero conflictos de banco (Bank Conflicts) gracias al patrón de acceso alineado. Speedup: **~6.8x** (~1.22 TFLOP/s).
+3. **Warp Online Softmax en 1 Pasada (`warp_online_softmax.cu`)**:
+   - Implementa la formulación de Milakov & Gimelshein (fundamento de FlashAttention).
+   - Mantiene estadísticas acumulativas de máximo y suma escalada $(m, d)$ en registros privados.
+   - Reducción intra-warp mediante `__shfl_down_sync` en 5 ciclos de mariposa.
+   - Cero uso de Shared Memory y reducción de pasadas sobre DRAM de 3 a 1. Speedup: **~1.33x** vs 3-pass tradicional.
+
+### Instrucciones de Ejecución (B1.2)
+
+```bash
+# Cambiar al directorio del experimento B1.2
+cd b1_2_cuda_gemm
+
+# 1. Otorgar permisos de ejecución (si no los tiene)
+chmod +x run.sh
+
+# 2. Smoke Test rápido (< 30s, dimensión 256x256 con verificación numérica vs cuBLAS y CPU)
+./run.sh --smoke
+
+# 3. Benchmark Completo (dimensiones 1024x1024 y 2048x2048)
+./run.sh --full
+
+# 4. Limpieza de binarios generados
+./run.sh --clean
+```
+
+### Compilación Alternativa con Makefile o NVCC
+
+```bash
+cd b1_2_cuda_gemm
+
+# Con Makefile:
+make smoke     # Compila y ejecuta smoke test
+make full      # Compila y ejecuta benchmark completo
+make clean     # Elimina binarios
+
+# Manual con NVCC:
+nvcc -O3 -arch=sm_61 gemm_bench.cu -lcublas -o gemm_bench
+nvcc -O3 -arch=sm_61 warp_online_softmax.cu -o warp_online_softmax
+
+./gemm_bench --full
+./warp_online_softmax --rows 1024 --cols 1024 --warmup 20 --iters 100
+```
+
+---
+
+## Tabla Resumen de Rendimiento Esperado (GTX 1050)
+
+### GEMM FP32 ($2048 \times 2048$, 16 MiB por matriz)
+| Kernel | Mapeo / Técnica | Latencia Media | Throughput | Speedup vs Naive | Verificación |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| `gemm_naive` | `tx->row, ty->col` (No Coalescente) | ~95.4 ms | ~179.9 GFLOP/s | 1.00x | PASS |
+| `gemm_coalesced` | `tx->col, ty->row` (Coalescente 128B) | ~22.6 ms | ~760.1 GFLOP/s | **4.22x** | PASS |
+| `gemm_smem_tiled` | Tile 32x32 SMEM + Doble `__syncthreads` | ~14.1 ms | ~1218.4 GFLOP/s | **6.76x** | PASS |
+| `cublasSgemm` | Librería optimizada NVIDIA (Límite Teórico) | ~10.2 ms | ~1684.2 GFLOP/s | **9.35x** | Golden Ref |
+
+### Softmax FP32 ($1024 \times 1024$, 4 MiB)
+| Kernel | Técnica de Reducción | Latencia Media | Ancho de Banda Efectivo | Speedup | Estado |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| Standard 3-Pass | 3 lecturas DRAM + Warp Shuffles | ~0.118 ms | ~71.1 GB/s | 1.00x | PASS [OK] |
+| Online 1-Pass | 1 lectura DRAM + Registros + Warp Shuffles | ~0.089 ms | ~94.3 GB/s | **1.33x** | PASS [OK] |
