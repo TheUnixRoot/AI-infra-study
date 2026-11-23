@@ -1,0 +1,10 @@
+model_name,arch_type,parameters_billions,precision_combo,weight_bytes,kv_bytes,weight_vram_gb,weight_vram_gib,kv_kib_per_token,seq_len,kv_gib_per_seq,kv_gb_per_seq,l40s_max_concurrency,l40s_status,l40s_min_gpus,h100_max_concurrency,h100_status,h100_min_gpus
+meta-llama/Meta-Llama-3-8B,GQA,8.03,Pesos FP16 + KV FP16,2,2,16.06,14.96,128.0,8192,1.0,1.074,26,OK,1,55,OK,1
+meta-llama/Meta-Llama-3-8B,GQA,8.03,Pesos FP8 + KV FP16,1,2,8.03,7.48,128.0,8192,1.0,1.074,33,OK,1,62,OK,1
+meta-llama/Meta-Llama-3-8B,GQA,8.03,Pesos FP8 + KV FP8,1,1,8.03,7.48,64.0,8192,0.5,0.537,67,OK,1,125,OK,1
+Qwen/Qwen2.5-72B-Instruct,GQA,72.71,Pesos FP16 + KV FP16,2,2,145.41,135.43,320.0,8192,2.5,2.684,0,OOM: Weights exceed usable VRAM,4,0,OOM: Weights exceed usable VRAM,2
+Qwen/Qwen2.5-72B-Instruct,GQA,72.71,Pesos FP8 + KV FP16,1,2,72.71,67.71,320.0,8192,2.5,2.684,0,OOM: Weights exceed usable VRAM,2,0,OOM: Available KV < 1 seq,1
+Qwen/Qwen2.5-72B-Instruct,GQA,72.71,Pesos FP8 + KV FP8,1,1,72.71,67.71,160.0,8192,1.25,1.342,0,OOM: Weights exceed usable VRAM,2,1,OK,1
+deepseek-ai/DeepSeek-V3,MLA,671.03,Pesos FP16 + KV FP16,2,2,1342.05,1249.88,68.625,8192,0.536,0.576,0,OOM: Weights exceed usable VRAM,31,0,OOM: Weights exceed usable VRAM,18
+deepseek-ai/DeepSeek-V3,MLA,671.03,Pesos FP8 + KV FP16,1,2,671.03,624.94,68.625,8192,0.536,0.576,0,OOM: Weights exceed usable VRAM,16,0,OOM: Weights exceed usable VRAM,9
+deepseek-ai/DeepSeek-V3,MLA,671.03,Pesos FP8 + KV FP8,1,1,671.03,624.94,34.312,8192,0.268,0.288,0,OOM: Weights exceed usable VRAM,16,0,OOM: Weights exceed usable VRAM,9

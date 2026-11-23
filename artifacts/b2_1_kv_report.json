@@ -1,0 +1,344 @@
+{
+  "metadata": {
+    "title": "B2.1 KV-Cache Arithmetic & VRAM Budgeting Report",
+    "module": "Project A: agentic-inference-opt-lab",
+    "cli_args": {
+      "models": [
+        "meta-llama/Meta-Llama-3-8B",
+        "Qwen/Qwen2.5-72B-Instruct",
+        "deepseek-ai/DeepSeek-V3"
+      ],
+      "seq_len": 8192,
+      "gpu_mem_util": 0.9,
+      "overhead_gb": 2.0,
+      "smoke_test": false
+    },
+    "gpu_profiles": {
+      "L40S (48 GB)": {
+        "total_gib": 48.0,
+        "total_gb": 48.0,
+        "arch": "Ada Lovelace",
+        "memory_type": "GDDR6"
+      },
+      "H100 (80 GB)": {
+        "total_gib": 80.0,
+        "total_gb": 80.0,
+        "arch": "Hopper",
+        "memory_type": "HBM3"
+      }
+    },
+    "precision_combos": [
+      "Pesos FP16 + KV FP16",
+      "Pesos FP8 + KV FP16",
+      "Pesos FP8 + KV FP8"
+    ]
+  },
+  "results": [
+    {
+      "model_name": "meta-llama/Meta-Llama-3-8B",
+      "config_source": "verified-embedded (meta-llama/Meta-Llama-3-8B)",
+      "arch_info": {
+        "attn_type": "GQA",
+        "attn_details": "GQA (q_heads=32, kv_heads=8, d_head=128, L=32)",
+        "is_mla": false,
+        "num_hidden_layers": 32,
+        "n_kv_heads": 8,
+        "head_dim_desc": "128",
+        "elems_per_token_per_layer": 2048,
+        "total_kv_elems_per_token": 65536,
+        "param_count": 8030261248,
+        "param_count_billions": 8.03
+      },
+      "combinations": [
+        {
+          "combo_name": "Pesos FP16 + KV FP16",
+          "weight_bytes": 2,
+          "kv_bytes": 2,
+          "weight_vram_gb": 16.06,
+          "weight_vram_gib": 14.96,
+          "kv_kib_per_token": 128.0,
+          "kv_gib_per_seq": 1.0,
+          "kv_gb_per_seq": 1.074,
+          "hardware": {
+            "L40S (48 GB)": {
+              "total_vram_gib": 48.0,
+              "usable_vram_gib": 41.2,
+              "available_kv_gib": 26.24,
+              "max_concurrency": 26,
+              "status": "OK",
+              "min_gpus_weights": 1
+            },
+            "H100 (80 GB)": {
+              "total_vram_gib": 80.0,
+              "usable_vram_gib": 70.0,
+              "available_kv_gib": 55.04,
+              "max_concurrency": 55,
+              "status": "OK",
+              "min_gpus_weights": 1
+            }
+          }
+        },
+        {
+          "combo_name": "Pesos FP8 + KV FP16",
+          "weight_bytes": 1,
+          "kv_bytes": 2,
+          "weight_vram_gb": 8.03,
+          "weight_vram_gib": 7.48,
+          "kv_kib_per_token": 128.0,
+          "kv_gib_per_seq": 1.0,
+          "kv_gb_per_seq": 1.074,
+          "hardware": {
+            "L40S (48 GB)": {
+              "total_vram_gib": 48.0,
+              "usable_vram_gib": 41.2,
+              "available_kv_gib": 33.72,
+              "max_concurrency": 33,
+              "status": "OK",
+              "min_gpus_weights": 1
+            },
+            "H100 (80 GB)": {
+              "total_vram_gib": 80.0,
+              "usable_vram_gib": 70.0,
+              "available_kv_gib": 62.52,
+              "max_concurrency": 62,
+              "status": "OK",
+              "min_gpus_weights": 1
+            }
+          }
+        },
+        {
+          "combo_name": "Pesos FP8 + KV FP8",
+          "weight_bytes": 1,
+          "kv_bytes": 1,
+          "weight_vram_gb": 8.03,
+          "weight_vram_gib": 7.48,
+          "kv_kib_per_token": 64.0,
+          "kv_gib_per_seq": 0.5,
+          "kv_gb_per_seq": 0.537,
+          "hardware": {
+            "L40S (48 GB)": {
+              "total_vram_gib": 48.0,
+              "usable_vram_gib": 41.2,
+              "available_kv_gib": 33.72,
+              "max_concurrency": 67,
+              "status": "OK",
+              "min_gpus_weights": 1
+            },
+            "H100 (80 GB)": {
+              "total_vram_gib": 80.0,
+              "usable_vram_gib": 70.0,
+              "available_kv_gib": 62.52,
+              "max_concurrency": 125,
+              "status": "OK",
+              "min_gpus_weights": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model_name": "Qwen/Qwen2.5-72B-Instruct",
+      "config_source": "verified-embedded (Qwen/Qwen2.5-72B-Instruct)",
+      "arch_info": {
+        "attn_type": "GQA",
+        "attn_details": "GQA (q_heads=64, kv_heads=8, d_head=128, L=80)",
+        "is_mla": false,
+        "num_hidden_layers": 80,
+        "n_kv_heads": 8,
+        "head_dim_desc": "128",
+        "elems_per_token_per_layer": 2048,
+        "total_kv_elems_per_token": 163840,
+        "param_count": 72706449408,
+        "param_count_billions": 72.71
+      },
+      "combinations": [
+        {
+          "combo_name": "Pesos FP16 + KV FP16",
+          "weight_bytes": 2,
+          "kv_bytes": 2,
+          "weight_vram_gb": 145.41,
+          "weight_vram_gib": 135.43,
+          "kv_kib_per_token": 320.0,
+          "kv_gib_per_seq": 2.5,
+          "kv_gb_per_seq": 2.684,
+          "hardware": {
+            "L40S (48 GB)": {
+              "total_vram_gib": 48.0,
+              "usable_vram_gib": 41.2,
+              "available_kv_gib": 0.0,
+              "max_concurrency": 0,
+              "status": "OOM: Weights (135.4 GiB) exceed usable VRAM (41.2 GiB)",
+              "min_gpus_weights": 4
+            },
+            "H100 (80 GB)": {
+              "total_vram_gib": 80.0,
+              "usable_vram_gib": 70.0,
+              "available_kv_gib": 0.0,
+              "max_concurrency": 0,
+              "status": "OOM: Weights (135.4 GiB) exceed usable VRAM (70.0 GiB)",
+              "min_gpus_weights": 2
+            }
+          }
+        },
+        {
+          "combo_name": "Pesos FP8 + KV FP16",
+          "weight_bytes": 1,
+          "kv_bytes": 2,
+          "weight_vram_gb": 72.71,
+          "weight_vram_gib": 67.71,
+          "kv_kib_per_token": 320.0,
+          "kv_gib_per_seq": 2.5,
+          "kv_gb_per_seq": 2.684,
+          "hardware": {
+            "L40S (48 GB)": {
+              "total_vram_gib": 48.0,
+              "usable_vram_gib": 41.2,
+              "available_kv_gib": 0.0,
+              "max_concurrency": 0,
+              "status": "OOM: Weights (67.7 GiB) exceed usable VRAM (41.2 GiB)",
+              "min_gpus_weights": 2
+            },
+            "H100 (80 GB)": {
+              "total_vram_gib": 80.0,
+              "usable_vram_gib": 70.0,
+              "available_kv_gib": 2.29,
+              "max_concurrency": 0,
+              "status": "OOM: Available KV (2.3 GiB) < 1 sequence (2.5 GiB)",
+              "min_gpus_weights": 1
+            }
+          }
+        },
+        {
+          "combo_name": "Pesos FP8 + KV FP8",
+          "weight_bytes": 1,
+          "kv_bytes": 1,
+          "weight_vram_gb": 72.71,
+          "weight_vram_gib": 67.71,
+          "kv_kib_per_token": 160.0,
+          "kv_gib_per_seq": 1.25,
+          "kv_gb_per_seq": 1.342,
+          "hardware": {
+            "L40S (48 GB)": {
+              "total_vram_gib": 48.0,
+              "usable_vram_gib": 41.2,
+              "available_kv_gib": 0.0,
+              "max_concurrency": 0,
+              "status": "OOM: Weights (67.7 GiB) exceed usable VRAM (41.2 GiB)",
+              "min_gpus_weights": 2
+            },
+            "H100 (80 GB)": {
+              "total_vram_gib": 80.0,
+              "usable_vram_gib": 70.0,
+              "available_kv_gib": 2.29,
+              "max_concurrency": 1,
+              "status": "OK",
+              "min_gpus_weights": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model_name": "deepseek-ai/DeepSeek-V3",
+      "config_source": "verified-embedded (deepseek-ai/DeepSeek-V3)",
+      "arch_info": {
+        "attn_type": "MLA",
+        "attn_details": "MLA (kv_lora_rank=512, qk_rope_head_dim=64, heads=128, L=61)",
+        "is_mla": true,
+        "num_hidden_layers": 61,
+        "n_kv_heads": 1,
+        "head_dim_desc": "latent(512) + rope(64) = 576",
+        "elems_per_token_per_layer": 576,
+        "total_kv_elems_per_token": 35136,
+        "param_count": 671027000000,
+        "param_count_billions": 671.03
+      },
+      "combinations": [
+        {
+          "combo_name": "Pesos FP16 + KV FP16",
+          "weight_bytes": 2,
+          "kv_bytes": 2,
+          "weight_vram_gb": 1342.05,
+          "weight_vram_gib": 1249.88,
+          "kv_kib_per_token": 68.625,
+          "kv_gib_per_seq": 0.536,
+          "kv_gb_per_seq": 0.576,
+          "hardware": {
+            "L40S (48 GB)": {
+              "total_vram_gib": 48.0,
+              "usable_vram_gib": 41.2,
+              "available_kv_gib": 0.0,
+              "max_concurrency": 0,
+              "status": "OOM: Weights (1249.9 GiB) exceed usable VRAM (41.2 GiB)",
+              "min_gpus_weights": 31
+            },
+            "H100 (80 GB)": {
+              "total_vram_gib": 80.0,
+              "usable_vram_gib": 70.0,
+              "available_kv_gib": 0.0,
+              "max_concurrency": 0,
+              "status": "OOM: Weights (1249.9 GiB) exceed usable VRAM (70.0 GiB)",
+              "min_gpus_weights": 18
+            }
+          }
+        },
+        {
+          "combo_name": "Pesos FP8 + KV FP16",
+          "weight_bytes": 1,
+          "kv_bytes": 2,
+          "weight_vram_gb": 671.03,
+          "weight_vram_gib": 624.94,
+          "kv_kib_per_token": 68.625,
+          "kv_gib_per_seq": 0.536,
+          "kv_gb_per_seq": 0.576,
+          "hardware": {
+            "L40S (48 GB)": {
+              "total_vram_gib": 48.0,
+              "usable_vram_gib": 41.2,
+              "available_kv_gib": 0.0,
+              "max_concurrency": 0,
+              "status": "OOM: Weights (624.9 GiB) exceed usable VRAM (41.2 GiB)",
+              "min_gpus_weights": 16
+            },
+            "H100 (80 GB)": {
+              "total_vram_gib": 80.0,
+              "usable_vram_gib": 70.0,
+              "available_kv_gib": 0.0,
+              "max_concurrency": 0,
+              "status": "OOM: Weights (624.9 GiB) exceed usable VRAM (70.0 GiB)",
+              "min_gpus_weights": 9
+            }
+          }
+        },
+        {
+          "combo_name": "Pesos FP8 + KV FP8",
+          "weight_bytes": 1,
+          "kv_bytes": 1,
+          "weight_vram_gb": 671.03,
+          "weight_vram_gib": 624.94,
+          "kv_kib_per_token": 34.312,
+          "kv_gib_per_seq": 0.268,
+          "kv_gb_per_seq": 0.288,
+          "hardware": {
+            "L40S (48 GB)": {
+              "total_vram_gib": 48.0,
+              "usable_vram_gib": 41.2,
+              "available_kv_gib": 0.0,
+              "max_concurrency": 0,
+              "status": "OOM: Weights (624.9 GiB) exceed usable VRAM (41.2 GiB)",
+              "min_gpus_weights": 16
+            },
+            "H100 (80 GB)": {
+              "total_vram_gib": 80.0,
+              "usable_vram_gib": 70.0,
+              "available_kv_gib": 0.0,
+              "max_concurrency": 0,
+              "status": "OOM: Weights (624.9 GiB) exceed usable VRAM (70.0 GiB)",
+              "min_gpus_weights": 9
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
