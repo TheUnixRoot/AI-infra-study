@@ -112,7 +112,7 @@ docker build -t ai-infra-study:cloud --build-arg CUDA_ARCH=sm_90 .      # sm_89 
    disponible, el runner avisa y no inventa trazas ni tablas (ya se eliminaron los modos que fabricaban datos).
 2. **Secretos:** nunca subas claves, tokens ni `.env`. Los `.nsys-rep` están en `.gitignore` porque **embeben las variables de entorno** del
    proceso trazado. Antes de publicar, revisa con `gitleaks detect --source . --log-opts="--all"`.
-3. **Sin gasto implícito:** no añadas workflows de CI ni scripts que llamen a servicios cloud de pago sin que se pida expresamente.
+3. **Sin gasto implícito:** no añadas workflows de CI (salvo `pages.yml`) ni scripts que llamen a servicios cloud de pago sin que se pida expresamente.
 4. **Finales de línea LF** en `*.sh`, `*.py`, `*.cu`, `Makefile`, `Dockerfile` (`.gitattributes`). Los `.sh` se ejecutan en Linux.
 5. **Cuidado con el disco:** Docker Desktop guarda sus datos en `C:`. Descarga y compila en `D:`, usa `pip --no-cache-dir`, borra zips y no
    dejes contenedores corriendo. No ejecutes `docker system prune` ni borres imágenes que no sean tuyas.
@@ -125,9 +125,18 @@ docker build -t ai-infra-study:cloud --build-arg CUDA_ARCH=sm_90 .      # sm_89 
 2. Salidas JSON/CSV/TXT reales en `artifacts/`. Sin rutas absolutas locales en los artefactos.
 3. Añade la fila en el índice del [`README.md`](README.md) (estado ✅/🟡/⬜ y enlace) y los resultados en [`INFORME_RESULTADOS.md`](INFORME_RESULTADOS.md).
 4. Documentos del temario en `docs/temario/` y enlazados desde el índice del README.
-5. Contenido pensado para Pages: enlaces relativos, fórmulas LaTeX con `$...$` / `$$...$$` (MathJax), sin rutas `file:///`.
+5. Contenido pensado para Pages: enlaces relativos, fórmulas LaTeX con `$...$` / `$$...$$` (KaTeX), sin rutas `file:///`, y la página añadida a `nav` de `mkdocs.yml`.
 
 ## 7. Sitio web (GitHub Pages)
 
-`_config.yml` (tema Cayman, plugins de enlaces relativos y `README.md` como índice) y `_includes/head-custom.html` (MathJax).
-Activar en *Settings → Pages → Build and deployment → Source: Deploy from a branch → `main` / `(root)`*.
+Se genera con **MkDocs Material** (`mkdocs.yml`). `tools/build_site.py` copia los ficheros versionados a `build_src/` (misma estructura, para que
+los enlaces relativos de los README funcionen) y compila en `site/`. Las fórmulas LaTeX (`$...$`, `$$...$$`) las renderiza KaTeX mediante
+`pymdownx.arithmatex`; los `$$...$$` de una sola línea (p. ej. dentro de listas) se aíslan en la copia de `build_src/`, sin tocar el original.
+
+```bash
+pip install -r tools/requirements-site.txt
+python tools/build_site.py --strict     # prueba local, resultado en site/
+```
+
+Despliegue: workflow `.github/workflows/pages.yml` en cada push a `main` (único workflow permitido; sin coste en repos públicos).
+Activar una vez en *Settings → Pages → Build and deployment → Source: GitHub Actions*. Para que una página salga en el menú, añádela a `nav` en `mkdocs.yml`.

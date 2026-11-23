@@ -1,0 +1,59 @@
+site_name: AI Infra Study
+site_description: Learning path de AI Infrastructure con prácticas reproducibles sobre GPU
+site_url: https://theunixroot.github.io/AI-infra-study/
+repo_url: https://github.com/TheUnixRoot/AI-infra-study
+repo_name: TheUnixRoot/AI-infra-study
+edit_uri: ""
+docs_dir: build_src
+site_dir: site
+use_directory_urls: true
+
+theme:
+  name: material
+  language: es
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle: { icon: material/weather-night, name: Modo oscuro }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      toggle: { icon: material/weather-sunny, name: Modo claro }
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - content.code.copy
+    - toc.follow
+
+nav:
+  - Inicio: README.md
+  - Temario:
+      - Master Playbook: docs/temario/00-master-playbook.md
+  - Prácticas:
+      - B1.1 Strides y contiguous: b1_1_strides/README.md
+      - B1.2 CUDA C++: b1_2_cuda_gemm/README.md
+      - B1.3 Profiling con nsys: b1_3_profiling/README.md
+      - B2.1 KV-Cache: b2_1_kv_cache/README.md
+  - Resultados: INFORME_RESULTADOS.md
+  - Ejecución y herramientas (Windows, Linux, WSL2): AGENTS.md
+
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true
+  - admonition
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+extra_javascript:
+  - docs/javascripts/katex.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js
+extra_css:
+  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css

@@ -4,3 +4,5 @@ artifacts/b1_3_summary_opt.json
 artifacts/*.nsys-rep
 .venv/
 .venv-linux/
+build_src/
+site/
