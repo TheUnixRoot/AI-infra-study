@@ -36,7 +36,7 @@
   "results": [
     {
       "model_name": "meta-llama/Meta-Llama-3-8B",
-      "config_source": "verified-embedded (meta-llama/Meta-Llama-3-8B)",
+      "config_source": "verified-embedded-fallback (meta-llama/Meta-Llama-3-8B)",
       "arch_info": {
         "attn_type": "GQA",
         "attn_details": "GQA (q_heads=32, kv_heads=8, d_head=128, L=32)",
@@ -138,7 +138,7 @@
     },
     {
       "model_name": "Qwen/Qwen2.5-72B-Instruct",
-      "config_source": "verified-embedded (Qwen/Qwen2.5-72B-Instruct)",
+      "config_source": "huggingface_hub (Qwen/Qwen2.5-72B-Instruct)",
       "arch_info": {
         "attn_type": "GQA",
         "attn_details": "GQA (q_heads=64, kv_heads=8, d_head=128, L=80)",
@@ -148,7 +148,7 @@
         "head_dim_desc": "128",
         "elems_per_token_per_layer": 2048,
         "total_kv_elems_per_token": 163840,
-        "param_count": 72706449408,
+        "param_count": 72706686976,
         "param_count_billions": 72.71
       },
       "combinations": [
@@ -203,7 +203,7 @@
               "usable_vram_gib": 70.0,
               "available_kv_gib": 2.29,
               "max_concurrency": 0,
-              "status": "OOM: Available KV (2.3 GiB) < 1 sequence (2.5 GiB)",
+              "status": "OOM: Available KV < 1 seq",
               "min_gpus_weights": 1
             }
           }
@@ -240,7 +240,7 @@
     },
     {
       "model_name": "deepseek-ai/DeepSeek-V3",
-      "config_source": "verified-embedded (deepseek-ai/DeepSeek-V3)",
+      "config_source": "huggingface_hub (deepseek-ai/DeepSeek-V3)",
       "arch_info": {
         "attn_type": "MLA",
         "attn_details": "MLA (kv_lora_rank=512, qk_rope_head_dim=64, heads=128, L=61)",
@@ -259,7 +259,7 @@
           "weight_bytes": 2,
           "kv_bytes": 2,
           "weight_vram_gb": 1342.05,
-          "weight_vram_gib": 1249.88,
+          "weight_vram_gib": 1249.89,
           "kv_kib_per_token": 68.625,
           "kv_gib_per_seq": 0.536,
           "kv_gb_per_seq": 0.576,

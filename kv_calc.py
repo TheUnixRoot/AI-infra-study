@@ -343,7 +343,11 @@ def calculate_vram_and_concurrency(
                     status = "OOM: No remaining VRAM for KV-Cache"
                 else:
                     max_concurrency = math.floor(available_kv_gib / kv_gib_per_seq)
-                    status = "OK"
+                    # Less than one full sequence of KV-cache fits -> not servable
+                    if max_concurrency >= 1:
+                        status = "OK"
+                    else:
+                        status = "OOM: Available KV < 1 seq"
                 min_gpus_weights = 1
 
             hardware_results[gpu_name] = {
