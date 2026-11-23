@@ -102,7 +102,7 @@ echo "[INFO] Benchmark finalizado en ${ELAPSED} segundos."
 
 # 6. Verificación de integridad del artefacto generado
 if [ -f "${METRICS_FILE}" ]; then
-    if "${PYTHON_BIN}" -c "import json; json.load(open('${METRICS_FILE}'))" >/dev/null 2>&1; then
+    if "${PYTHON_BIN}" -c "import json,sys; json.load(open(sys.argv[1]))" "${METRICS_FILE}" >/dev/null 2>&1; then
         echo "[SUCCESS] Artefacto verificado correctamente: ${METRICS_FILE}"
         echo "[SUCCESS] Tamaño del JSON: $(wc -c < "${METRICS_FILE}") bytes"
     else
