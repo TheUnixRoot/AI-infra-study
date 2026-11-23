@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# run_b2_1.sh - Entrypoint for Experiment B2.1: KV-Cache Arithmetic & VRAM Budget
+# run.sh - Entrypoint for Experiment B2.1: KV-Cache Arithmetic & VRAM Budget
 # Module of Project A: agentic-inference-opt-lab
 # Hardware Target: CPU Local (0 EUR, no GPU required)
 # ==============================================================================
@@ -10,7 +10,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
-ARTIFACTS_DIR="${SCRIPT_DIR}/artifacts"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ARTIFACTS_DIR="${ROOT_DIR}/artifacts"
 mkdir -p "${ARTIFACTS_DIR}"
 
 REPORT_JSON="${ARTIFACTS_DIR}/b2_1_kv_report.json"

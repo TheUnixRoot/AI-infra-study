@@ -74,7 +74,7 @@
 ## 3. Instrumentación NVTX y Profiling de Sistema
 
 ### A. Anotación con NVTX (`torch.cuda.nvtx`)
-El script [`b1_3_antipatterns.py`](file:///data/data/com.termux/files/home/raiz/AI-infra-study/b1_3_profiling/b1_3_antipatterns.py) anota cada etapa:
+El script [`b1_3_antipatterns.py`](b1_3_antipatterns.py) anota cada etapa:
 ```python
 # Delimitación de transferencia PCIe
 torch.cuda.nvtx.range_push("H2D_Transfer")

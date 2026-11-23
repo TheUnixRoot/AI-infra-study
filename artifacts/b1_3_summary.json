@@ -1,6 +1,6 @@
 {
   "benchmark": "B1.3 - Profiling nsys & Linux perf (Antipatterns vs Optimized)",
-  "timestamp": "2026-11-23T17:14:02.381712+00:00",
+  "timestamp": "2026-11-23T18:30:16.279885+00:00",
   "target_hardware": {
     "gpu": "NVIDIA GeForce GTX 1050",
     "architecture": "sm_61 (Pascal GP107)",
@@ -28,32 +28,32 @@
   "bad_mode": {
     "description": "Antipatterns: (a) .item() in loop, (b) Pageable H2D sync, (c) 200 unfused ops",
     "step_time_ms": {
-      "mean": 223.1291399919428,
-      "median": 222.96114987693727,
-      "min": 222.18080004677176,
-      "max": 224.52350007370114,
-      "std": 0.6783750180128822
+      "mean": 223.13792500644922,
+      "median": 223.14499993808568,
+      "min": 221.90210013650358,
+      "max": 224.15030002593994,
+      "std": 0.5495604584413355
     },
     "h2d_time_ms": {
-      "mean": 3.705585610866547,
-      "median": 3.597279906272888,
-      "min": 2.976896047592163,
-      "max": 4.44649600982666,
-      "std": 0.4034993894164459
+      "mean": 3.802179217338562,
+      "median": 3.851151943206787,
+      "min": 2.9270401000976562,
+      "max": 4.350624084472656,
+      "std": 0.35970331050889526
     },
     "comp_time_ms": {
-      "mean": 218.1905662536621,
-      "median": 217.9319305419922,
-      "min": 217.76953125,
-      "max": 219.13504028320312,
-      "std": 0.4791733078259768
+      "mean": 218.18828506469725,
+      "median": 217.9974594116211,
+      "min": 217.81893920898438,
+      "max": 219.11622619628906,
+      "std": 0.44157316014672243
     },
     "sync_time_ms": {
-      "mean": 210.18308997154236,
-      "median": 210.12055000755936,
-      "min": 207.25230011157691,
-      "max": 211.51930000633,
-      "std": 0.9444116258997921
+      "mean": 209.41405500052497,
+      "median": 210.19580005668104,
+      "min": 194.8915000539273,
+      "max": 211.81619982235134,
+      "std": 3.4581406660915475
     },
     "kernel_launches_per_step": 600,
     "kernel_launches_total": 12000
@@ -62,45 +62,45 @@
     "description": "Optimized: (a) Device accumulation, (b) Pinned H2D async DMA, (c) Fused kernel",
     "fusion_engine": "None (unfused; Triton unsupported on this GPU)",
     "step_time_ms": {
-      "mean": 220.6896649673581,
-      "median": 220.5023498972878,
-      "min": 220.28880007565022,
-      "max": 221.68729989789426,
-      "std": 0.44336514479394207
+      "mean": 220.80209499690682,
+      "median": 220.6789000192657,
+      "min": 220.1696999836713,
+      "max": 221.91710001789033,
+      "std": 0.4929382539407861
     },
     "h2d_time_ms": {
-      "mean": 1.7835679948329926,
-      "median": 1.7742559909820557,
-      "min": 1.6499199867248535,
-      "max": 1.9281599521636963,
-      "std": 0.08609629001139454
+      "mean": 1.7894320011138916,
+      "median": 1.7577599883079529,
+      "min": 1.6811200380325317,
+      "max": 2.0603199005126953,
+      "std": 0.09719439931806166
     },
     "comp_time_ms": {
-      "mean": 218.0973129272461,
-      "median": 217.8960418701172,
-      "min": 217.7821044921875,
-      "max": 219.00694274902344,
-      "std": 0.43619414224551434
+      "mean": 218.18172225952148,
+      "median": 217.9794921875,
+      "min": 217.7902069091797,
+      "max": 219.09811401367188,
+      "std": 0.44220285550833555
     },
     "sync_time_ms": {
-      "mean": 0.12204500380903482,
-      "median": 0.11645001359283924,
-      "min": 0.08919998072087765,
-      "max": 0.19899988546967506,
-      "std": 0.02964495818825914
+      "mean": 0.11089002946391702,
+      "median": 0.10235002264380455,
+      "min": 0.08859997615218163,
+      "max": 0.16290019266307354,
+      "std": 0.020700390986982637
     },
     "kernel_launches_per_step": 600,
     "kernel_launches_total": 12000
   },
   "speedup_metrics": {
     "step_time_speedup_x": 1.01,
-    "h2d_transfer_speedup_x": 2.08,
+    "h2d_transfer_speedup_x": 2.12,
     "elementwise_compute_speedup_x": 1.0,
     "kernel_launch_reduction_x": 1.0
   },
   "artifacts": {
     "bad_nsys_trace": null,
     "opt_nsys_trace": null,
-    "summary_json": "D:/APPS/AI-infra-study/artifacts/b1_3_summary.json"
+    "summary_json": "artifacts/b1_3_summary.json"
   }
 }

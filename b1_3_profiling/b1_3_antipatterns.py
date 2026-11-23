@@ -733,7 +733,7 @@ def main() -> int:
         "artifacts": {
             "bad_nsys_trace": None,
             "opt_nsys_trace": None,
-            "summary_json": args.output,
+            "summary_json": os.path.relpath(os.path.abspath(args.output), os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))).replace(os.sep, "/"),
         },
     }
 
