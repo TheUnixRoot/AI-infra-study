@@ -168,7 +168,8 @@ if [ -n "${NSYS_BIN}" ] && [ "${CUDA_READY}" = "true" ] && [ "${FORCE_SIM}" -eq 
         --stats=true \
         --force-overwrite=true \
         -o "${ARTIFACTS_DIR}/b1_3_bad" \
-        "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode bad --output "${SUMMARY_FILE}" "$@" || true
+        "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode bad --output "${SUMMARY_FILE}" "$@" || echo "[AVISO] nsys termino con error en modo BAD."
+    [ -f "${ARTIFACTS_DIR}/b1_3_bad.nsys-rep" ] || echo "[AVISO] No se genero b1_3_bad.nsys-rep (nsys no pudo trazar CUDA; p.ej. WSL2 + Pascal). Sin traza real no hay nsys stats."
 
     echo "------------------------------------------------------------------------------"
     echo "[EXEC] Ejecutando nsys profile sobre MODO OPT..."
@@ -178,7 +179,8 @@ if [ -n "${NSYS_BIN}" ] && [ "${CUDA_READY}" = "true" ] && [ "${FORCE_SIM}" -eq 
         --stats=true \
         --force-overwrite=true \
         -o "${ARTIFACTS_DIR}/b1_3_opt" \
-        "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode opt --output "${SUMMARY_FILE}" "$@" || true
+        "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode opt --output "${SUMMARY_FILE}" "$@" || echo "[AVISO] nsys termino con error en modo OPT."
+    [ -f "${ARTIFACTS_DIR}/b1_3_opt.nsys-rep" ] || echo "[AVISO] No se genero b1_3_opt.nsys-rep (nsys no pudo trazar CUDA; p.ej. WSL2 + Pascal). Sin traza real no hay nsys stats."
 
     echo "------------------------------------------------------------------------------"
     echo "[EXEC] Generando consolidado y tablas estadísticas cuda_api_sum / cuda_gpu_kern_sum..."
@@ -187,21 +189,9 @@ if [ -n "${NSYS_BIN}" ] && [ "${CUDA_READY}" = "true" ] && [ "${FORCE_SIM}" -eq 
 
 else
     echo "------------------------------------------------------------------------------"
-    echo "[INFO] Modo Profiling: Generando trazas de arquitectura y reporte de nsys stats..."
+    echo "[AVISO] Sin nsys real: se miden tiempos con CUDA events, pero NO se generan trazas .nsys-rep."
+    echo "        Instala Nsight Systems para obtener nsys stats (cuda_api_sum / cuda_gpu_kern_sum)."
     echo "------------------------------------------------------------------------------"
-    
-    # Asegurar que existan artefactos de traza .nsys-rep para reproducibilidad
-    cat << EOF > "${BAD_TRACE}"
-# Nsight Systems Profile Report Mock / Architectural Trace (GTX 1050 sm_61)
-# Mode: BAD (Antipatterns: item() sync stall, pageable H2D, 200 unfused ops)
-# Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-EOF
-
-    cat << EOF > "${OPT_TRACE}"
-# Nsight Systems Profile Report Mock / Architectural Trace (GTX 1050 sm_61)
-# Mode: OPT (Optimized: async device accumulation, pinned DMA H2D, torch.compile fused loop)
-# Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-EOF
 
     "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode all --output "${SUMMARY_FILE}" "$@"
 fi
@@ -222,10 +212,10 @@ ELAPSED=$((END_TIME - START_TIME))
 echo "=============================================================================="
 echo "  REPORTE FINAL B1.3"
 echo "=============================================================================="
-echo "  - Estado:               COMPLETADO CON ÉXITO"
+if [ -f "${BAD_TRACE}" ] && [ -f "${OPT_TRACE}" ]; then echo "  - Estado:               COMPLETADO (con trazas nsys reales)"; else echo "  - Estado:               COMPLETADO SIN TRAZAS NSYS (solo tiempos CUDA events)"; fi
 echo "  - Tiempo total ejec:    ${ELAPSED} segundos"
-echo "  - Traza BAD (.nsys-rep): ${BAD_TRACE}"
-echo "  - Traza OPT (.nsys-rep): ${OPT_TRACE}"
+[ -f "${BAD_TRACE}" ] && echo "  - Traza BAD (.nsys-rep): ${BAD_TRACE}"
+[ -f "${OPT_TRACE}" ] && echo "  - Traza OPT (.nsys-rep): ${OPT_TRACE}"
 echo "  - Resumen JSON:         ${SUMMARY_FILE}"
 echo "=============================================================================="
 

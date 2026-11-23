@@ -132,44 +132,22 @@ def chain_ops_for_compile(x: Any, num_ops: int) -> Any:
 
 def get_fused_fn(num_ops: int):
     """
-    Builds the fused function using torch.compile (PyTorch 2.x Inductor).
-    Falls back gracefully to TorchScript or a closed-loop vectorized block
-    if torch.compile is unavailable or unsupported on the running Python version.
+    Opt C: kernel fusion via torch.compile (Inductor -> Triton).
+    Triton requires compute capability >= 7.0, so on Pascal (GTX 1050, sm_61)
+    fusion is NOT available locally (playbook: Triton/ncu belong to B1.4, cloud).
+    There, the chain stays unfused: antipattern C is diagnosed (launch overhead /
+    DRAM round-trips) but not fixed in this block. No fake fusion is substituted.
     """
     if not TORCH_AVAILABLE:
         return None, "Simulation"
 
-    # Attempt 1: torch.compile (PyTorch 2.0+)
-    if hasattr(torch, "compile"):
-        try:
-            # We compile for the specific op loop
-            fused_fn = torch.compile(chain_ops_for_compile, mode="default")
-            return fused_fn, "torch.compile (Inductor Loop Fusion)"
-        except Exception as e:
-            pass
+    triton_supported = torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 7
+    if hasattr(torch, "compile") and triton_supported:
+        return torch.compile(chain_ops_for_compile, mode="default"), "torch.compile (Inductor Loop Fusion)"
 
-    # Attempt 2: torch.jit.script
-    try:
-        @torch.jit.script
-        def jit_fused_fn(x: torch.Tensor, n_ops: int) -> torch.Tensor:
-            for _ in range(n_ops):
-                x = torch.relu(x * 1.0001 + 0.0001)
-            return x
-        return jit_fused_fn, "TorchScript JIT"
-    except Exception:
-        pass
-
-    # Attempt 3: Vectorized single-pass equivalent
-    def vectorized_fused_fn(x: torch.Tensor, n_ops: int) -> torch.Tensor:
-        # Mathematical closed-loop equivalent for n_ops iterations:
-        # Since x > 0 after relu, (x*a + b) repeated n times is x*(a^n) + b * sum_{k=0}^{n-1} a^k
-        a = 1.0001
-        b = 0.0001
-        a_pow_n = a ** n_ops
-        b_sum = b * ((a_pow_n - 1.0) / (a - 1.0))
-        return torch.relu(x * a_pow_n + b_sum)
-
-    return vectorized_fused_fn, "Vectorized Single-Pass Kernel"
+    print("  [AVISO] GPU sin soporte Triton (CC < 7.0): Opt C (fusion) se difiere a B1.4 (cloud). "
+          "Se mantiene la cadena sin fusionar.")
+    return run_unfused_ops, "None (unfused; Triton unsupported on this GPU)"
 
 
 # ==============================================================================
@@ -325,7 +303,9 @@ def run_physical_benchmark(
     if mode == "opt":
         final_metric = device_accumulated_metric.item()
 
-    kernel_launches_per_step = (num_ops * 2) if mode == "bad" else 1
+    # Nominal count (mul, add, relu = 3 kernels per op when unfused); real counts come from nsys.
+    fused = mode == "opt" and "Inductor" in fusion_engine
+    kernel_launches_per_step = 1 if fused else num_ops * 3
     total_kernel_launches = kernel_launches_per_step * iterations
 
     stats_step = compute_stats(step_times_ms)
@@ -681,16 +661,19 @@ def main() -> int:
             print("\n>>> Ejecutando MODO OPT (Pipeline Optimizado)...")
         opt_results = run_one_mode("opt")
 
-    # If only one mode was run, generate counterpart simulated or stub for full report
-    if args.mode == "bad" and opt_results is None:
-        opt_results = run_simulated_benchmark("opt", dim, num_ops, iterations, warmup)
-    elif args.mode == "opt" and bad_results is None:
-        bad_results = run_simulated_benchmark("bad", dim, num_ops, iterations, warmup)
+    # Single-mode run (used under nsys): report only what was measured. Never
+    # synthesize the missing counterpart.
+    if args.mode != "all":
+        only = bad_results if args.mode == "bad" else opt_results
+        out = args.output.replace(".json", f"_{args.mode}.json")
+        os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump({"mode": args.mode, "result": only}, f, indent=2, default=str)
+        print(f"[OK] Resultado del modo {args.mode.upper()} (solo medido) en: {out}")
+        return 0
 
-    # Print Nsys Stats Tables and Comparison
-    api_table, kern_table = generate_nsys_tables(bad_results, opt_results)
-    print(api_table)
-    print(kern_table)
+    # Real cuda_api_sum / cuda_gpu_kern_sum tables come from `nsys stats` on the
+    # generated .nsys-rep (see run.sh); they are not synthesized here.
     print_summary_comparison(bad_results, opt_results)
 
     # Build Consolidated JSON
@@ -748,8 +731,8 @@ def main() -> int:
             "kernel_launch_reduction_x": round(bad_results["kernel_launches_per_step"] / opt_results["kernel_launches_per_step"], 1),
         },
         "artifacts": {
-            "bad_nsys_trace": "artifacts/b1_3_bad.nsys-rep",
-            "opt_nsys_trace": "artifacts/b1_3_opt.nsys-rep",
+            "bad_nsys_trace": None,
+            "opt_nsys_trace": None,
             "summary_json": args.output,
         },
     }
