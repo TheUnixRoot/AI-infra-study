@@ -59,8 +59,12 @@ print_header
 mkdir -p "${ARTIFACTS_DIR}"
 
 # 3. Detección de intérprete Python
-PYTHON_BIN=""
-if command -v python3 >/dev/null 2>&1; then
+# Se puede forzar el intérprete con PYTHON_BIN=/ruta/python (p. ej. python.exe de una venv en
+# Windows, necesario para que nsys.exe pueda lanzarlo).
+PYTHON_BIN="${PYTHON_BIN:-}"
+if [ -n "${PYTHON_BIN}" ]; then
+    :
+elif command -v python3 >/dev/null 2>&1; then
     PYTHON_BIN="python3"
 elif command -v python >/dev/null 2>&1; then
     PYTHON_BIN="python"
@@ -159,28 +163,33 @@ for arg in "$@"; do
     fi
 done
 
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) NSYS_TRACE="cuda,nvtx" ;;   # osrt es solo Linux
+    *) NSYS_TRACE="cuda,nvtx,osrt" ;;
+esac
+
 if [ -n "${NSYS_BIN}" ] && [ "${CUDA_READY}" = "true" ] && [ "${FORCE_SIM}" -eq 0 ]; then
     echo "------------------------------------------------------------------------------"
     echo "[EXEC] Ejecutando nsys profile sobre MODO BAD..."
     echo "------------------------------------------------------------------------------"
     "${NSYS_BIN}" profile \
-        --trace=cuda,nvtx,osrt \
+        --trace="${NSYS_TRACE}" \
         --stats=true \
         --force-overwrite=true \
         -o "${ARTIFACTS_DIR}/b1_3_bad" \
         "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode bad --output "${SUMMARY_FILE}" "$@" || echo "[AVISO] nsys termino con error en modo BAD."
-    [ -f "${ARTIFACTS_DIR}/b1_3_bad.nsys-rep" ] || echo "[AVISO] No se genero b1_3_bad.nsys-rep (nsys no pudo trazar CUDA; p.ej. WSL2 + Pascal). Sin traza real no hay nsys stats."
+    [ -f "${ARTIFACTS_DIR}/b1_3_bad.nsys-rep" ] || echo "[AVISO] No se genero b1_3_bad.nsys-rep (nsys fallo; en WSL2 no identifica la GPU: usa nsys nativo de Windows o Linux). Sin traza real no hay nsys stats."
 
     echo "------------------------------------------------------------------------------"
     echo "[EXEC] Ejecutando nsys profile sobre MODO OPT..."
     echo "------------------------------------------------------------------------------"
     "${NSYS_BIN}" profile \
-        --trace=cuda,nvtx,osrt \
+        --trace="${NSYS_TRACE}" \
         --stats=true \
         --force-overwrite=true \
         -o "${ARTIFACTS_DIR}/b1_3_opt" \
         "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode opt --output "${SUMMARY_FILE}" "$@" || echo "[AVISO] nsys termino con error en modo OPT."
-    [ -f "${ARTIFACTS_DIR}/b1_3_opt.nsys-rep" ] || echo "[AVISO] No se genero b1_3_opt.nsys-rep (nsys no pudo trazar CUDA; p.ej. WSL2 + Pascal). Sin traza real no hay nsys stats."
+    [ -f "${ARTIFACTS_DIR}/b1_3_opt.nsys-rep" ] || echo "[AVISO] No se genero b1_3_opt.nsys-rep (nsys fallo; en WSL2 no identifica la GPU: usa nsys nativo de Windows o Linux). Sin traza real no hay nsys stats."
 
     echo "------------------------------------------------------------------------------"
     echo "[EXEC] Generando consolidado y tablas estadísticas cuda_api_sum / cuda_gpu_kern_sum..."
