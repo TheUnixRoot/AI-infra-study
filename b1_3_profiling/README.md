@@ -124,14 +124,16 @@ nsys-ui ../artifacts/b1_3_opt.nsys-rep &
 
 ---
 
-## 5. Rendimiento Esperado (GTX 1050 sm_61)
+## 5. Rendimiento Medido (GTX 1050 sm_61)
+
+Opt C (fusión) no está disponible en sm_61: Triton exige CC >= 7.0 (se aborda en B1.4, cloud). Trazas reales con nsys 2024.5.1 nativo de Windows (`nsys` en WSL2 no identifica la GPU).
 
 Tensor FP32 de $2048 \times 2048$ ($16.0\text{ MiB}$), 200 operaciones element-wise:
 
 | Métrica / Fase | Modo BAD (Antipatrones) | Modo OPT (Optimizado) | Factor de Mejora (Speedup) | Mecanismo de Aceleración |
 | :--- | :---: | :---: | :---: | :--- |
-| **Transferencia H2D** | ~4.12 ms | ~1.46 ms | **2.82x** | Pinned memory + DMA directo PCIe 3.0 x16 |
-| **Element-wise Compute** | ~95.80 ms | ~0.49 ms | **~195.5x** | Fusión de kernel (de 6.4 GB DRAM a registros de SM) |
-| **Sincronización (.item)** | ~0.28 ms | ~0.005 ms | **~56.0x** | Acumulación asíncrona en GPU, 0 sync en hot loop |
-| **Latencia Total por Paso** | **~100.20 ms** | **~1.95 ms** | **~51.4x** | Pipelining continuo CPU-GPU |
-| **Kernel Launches por Paso** | 200 launches | 1 launch | **200x menos** | Reducción drástica de sobrecarga en driver CUDA |
+| **Transferencia H2D** | 3.71 ms | 1.78 ms | **2.08x** | Pinned memory + DMA directo PCIe 3.0 x16 |
+| **Element-wise Compute** | 218.2 ms | 218.1 ms | **1.00x** | Sin fusión en sm_61 (200 ops = 600 kernels, ~362 us cada uno según nsys) |
+| **Sincronización (.item)** | 210.2 ms (espera al cómputo encolado) | 0.12 ms | n/a | `.item()` bloquea la CPU hasta que acaba la cola; no añade cómputo |
+| **Latencia Total por Paso** | **223.1 ms** | **220.7 ms** | **1.01x** | Pipelining continuo CPU-GPU |
+| **Kernel Launches por Paso** | 600 launches | 600 launches | 1.0x | Sin fusión: pendiente de B1.4 |

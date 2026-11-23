@@ -81,16 +81,16 @@ Estudio a nivel de ensamblador y kernel CUDA de los cuellos de botella fundament
 ### Conceptos Clave
 1. **Anatomía de la Coalescencia (`gemm_naive` vs `gemm_coalesced`)**:
    - `gemm_naive`: Asigna `threadIdx.x -> row`, provocando que hilos consecutivos de un warp salten $K \times 4\text{ bytes}$ en memoria. Emite hasta 32 transacciones por instrucción de carga DRAM.
-   - `gemm_coalesced`: Asigna `threadIdx.x -> col`, permitiendo que los 32 hilos accedan a direcciones contiguas empaquetadas en transacciones óptimas de 128 bytes (sector L2) y un broadcast de 1 ciclo para la matriz A. Speedup medido: **~4.2x**.
+   - `gemm_coalesced`: Asigna `threadIdx.x -> col`, permitiendo que los 32 hilos accedan a direcciones contiguas empaquetadas en transacciones óptimas de 128 bytes (sector L2) y un broadcast de 1 ciclo para la matriz A. Speedup medido: **4.8x** (2048³, GTX 1050).
 2. **Tiling Cooperativo en Shared Memory (`gemm_smem_tiled`)**:
    - Búferes compartidos `__shared__ float As[32][32]` y `Bs[32][32]` (8 KB por bloque).
    - Factor de reutilización: Cada float cargado de DRAM se reutiliza **32 veces** en SMEM, reduciendo el tráfico DRAM hasta en 32x.
-   - Cero conflictos de banco (Bank Conflicts) gracias al patrón de acceso alineado. Speedup: **~6.8x** (~1.22 TFLOP/s).
+   - Cero conflictos de banco (Bank Conflicts) gracias al patrón de acceso alineado. Speedup medido: **11.7x** (~281 GFLOP/s, ~17 % de cuBLAS).
 3. **Warp Online Softmax en 1 Pasada (`warp_online_softmax.cu`)**:
    - Implementa la formulación de Milakov & Gimelshein (fundamento de FlashAttention).
    - Mantiene estadísticas acumulativas de máximo y suma escalada $(m, d)$ en registros privados.
    - Reducción intra-warp mediante `__shfl_down_sync` en 5 ciclos de mariposa.
-   - Cero uso de Shared Memory y reducción de pasadas sobre DRAM de 3 a 1. Speedup: **~1.33x** vs 3-pass tradicional.
+   - Cero uso de Shared Memory y reducción de pasadas sobre DRAM de 3 a 1. Speedup medido: **1.31x** vs 3-pass tradicional.
 
 ### Instrucciones de Ejecución (B1.2)
 
@@ -131,21 +131,23 @@ nvcc -O3 -arch=sm_61 warp_online_softmax.cu -o warp_online_softmax
 
 ---
 
-## Tabla Resumen de Rendimiento Esperado (GTX 1050)
+## Tabla Resumen de Rendimiento Medido (GTX 1050)
+
+Valores medidos en la GTX 1050 (`artifacts/b1_2_results.*`, `artifacts/b1_3_summary.json`). Las tablas "esperadas" anteriores eran proyecciones no reproducidas.
 
 ### GEMM FP32 ($2048 \times 2048$, 16 MiB por matriz)
 | Kernel | Mapeo / Técnica | Latencia Media | Throughput | Speedup vs Naive | Verificación |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| `gemm_naive` | `tx->row, ty->col` (No Coalescente) | ~95.4 ms | ~179.9 GFLOP/s | 1.00x | PASS |
-| `gemm_coalesced` | `tx->col, ty->row` (Coalescente 128B) | ~22.6 ms | ~760.1 GFLOP/s | **4.22x** | PASS |
-| `gemm_smem_tiled` | Tile 32x32 SMEM + Doble `__syncthreads` | ~14.1 ms | ~1218.4 GFLOP/s | **6.76x** | PASS |
-| `cublasSgemm` | Librería optimizada NVIDIA (Límite Teórico) | ~10.2 ms | ~1684.2 GFLOP/s | **9.35x** | Golden Ref |
+| `gemm_naive` | `tx->row, ty->col` (No Coalescente) | 714.6 ms | 24.0 GFLOP/s | 1.00x | PASS |
+| `gemm_coalesced` | `tx->col, ty->row` (Coalescente 128B) | 148.6 ms | 115.6 GFLOP/s | **4.81x** | PASS |
+| `gemm_smem_tiled` | Tile 32x32 SMEM + Doble `__syncthreads` | 61.1 ms | 281.2 GFLOP/s | **11.69x** | PASS |
+| `cublasSgemm` | Librería optimizada NVIDIA (Límite Teórico) | 10.6 ms | 1627.1 GFLOP/s | **67.68x** | Golden Ref |
 
 ### Softmax FP32 ($1024 \times 1024$, 4 MiB)
 | Kernel | Técnica de Reducción | Latencia Media | Ancho de Banda Efectivo | Speedup | Estado |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| Standard 3-Pass | 3 lecturas DRAM + Warp Shuffles | ~0.118 ms | ~71.1 GB/s | 1.00x | PASS [OK] |
-| Online 1-Pass | 1 lectura DRAM + Registros + Warp Shuffles | ~0.089 ms | ~94.3 GB/s | **1.33x** | PASS [OK] |
+| Standard 3-Pass | 3 lecturas DRAM + Warp Shuffles | 0.175 ms | 47.9 GB/s | 1.00x | PASS [OK] |
+| Online 1-Pass | 1 lectura DRAM + Registros + Warp Shuffles | 0.134 ms | 62.7 GB/s | **1.31x** | PASS [OK] |
 
 ---
 
@@ -170,13 +172,15 @@ cd b1_3_profiling
 ./run.sh --help
 ```
 
-### Resumen de Resultados Esperados (GTX 1050 / sm_61)
+### Resumen de Resultados Medidos (GTX 1050 / sm_61)
+
+La fusión (Opt C) no está disponible en sm_61 (Triton exige CC >= 7.0): se difiere a B1.4 (cloud).
 
 | Métrica / Fase | Modo BAD (Antipatrones) | Modo OPT (Optimizado) | Factor de Mejora | Mecanismo |
 | :--- | :---: | :---: | :---: | :--- |
-| **H2D Transfer** | ~4.12 ms | ~1.46 ms | **2.82x** | Pinned DMA directo PCIe |
-| **Element-wise Compute** | ~95.80 ms | ~0.49 ms | **~195.5x** | Fusión de kernel (Inductor) en registros |
-| **Sync (.item)** | ~0.28 ms | ~0.005 ms | **~56.0x** | Acumulación asíncrona en GPU |
-| **Latencia por Paso** | **~100.20 ms** | **~1.95 ms** | **~51.4x** | Pipelining continuo CPU-GPU |
-| **Kernel Launches** | 200 launches | 1 launch | **200x menos** | Cero saturación de despacho |
+| **H2D Transfer** | 3.71 ms | 1.78 ms | **2.08x** | Pinned DMA directo PCIe |
+| **Element-wise Compute** | 218.2 ms | 218.1 ms | **1.00x** | Sin fusión en sm_61 (pendiente B1.4) |
+| **Sync (.item)** | 210.2 ms (espera al cómputo encolado) | 0.12 ms | n/a | Acumulación asíncrona en GPU; no reduce el tiempo total |
+| **Latencia por Paso** | **223.1 ms** | **220.7 ms** | **1.01x** | Domina el cómputo sin fusionar |
+| **Kernel Launches** | 600 launches | 600 launches | 1.0x | Sin fusión (nsys: 3 kernels x 200 ops) |
 

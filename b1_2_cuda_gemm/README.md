@@ -128,20 +128,20 @@ nvcc -O3 -arch=sm_61 warp_online_softmax.cu -o warp_online_softmax
 
 ---
 
-## 4. Tabla de Resultados de Referencia (Valores Esperados en GTX 1050)
+## 4. Tabla de Resultados (Medidos en GTX 1050, `artifacts/b1_2_results.*`)
 
 ### GEMM FP32 ($2048 \times 2048$, 16 MiB por matriz)
 
 | Kernel GEMM | Dimensión (MxNxK) | Latencia Media (ms) | Rendimiento (GFLOP/s) | Speedup vs Naive | Verificación vs cuBLAS |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **`gemm_naive`** | 2048x2048x2048 | ~95.40 ms | ~179.9 GFLOP/s | 1.00x | PASS (err: 0.00e+00) |
-| **`gemm_coalesced`** | 2048x2048x2048 | ~22.60 ms | ~760.1 GFLOP/s | **4.22x** | PASS (err: 1.19e-07) |
-| **`gemm_smem_tiled`** | 2048x2048x2048 | ~14.10 ms | ~1218.4 GFLOP/s | **6.76x** | PASS (err: 2.38e-07) |
-| **`cublasSgemm (Ref)`**| 2048x2048x2048 | ~10.20 ms | ~1684.2 GFLOP/s | **9.35x** | PASS (Referencia dorada) |
+| **`gemm_naive`** | 2048x2048x2048 | 714.6 ms | 24.0 GFLOP/s | 1.00x | PASS (err: 0.00e+00) |
+| **`gemm_coalesced`** | 2048x2048x2048 | 148.6 ms | 115.6 GFLOP/s | **4.81x** | PASS (err: 0.00e+00) |
+| **`gemm_smem_tiled`** | 2048x2048x2048 | 61.1 ms | 281.2 GFLOP/s | **11.69x** | PASS (err: 0.00e+00) |
+| **`cublasSgemm (Ref)`**| 2048x2048x2048 | 10.6 ms | 1627.1 GFLOP/s | **67.68x** | PASS (Referencia dorada) |
 
 ### Softmax FP32 ($1024 \times 1024$, 4.0 MiB)
 
 | Kernel Softmax | Dimensión (MxN) | Latencia (ms) | BW Efectivo (GB/s) | Speedup vs 3-Pass | Max Error Abs vs CPU | Estado |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Standard 3-Pass (Warp Shfl)** | 1024x1024 | ~0.118 ms | ~71.1 GB/s | 1.00x | 2.38e-07 | PASS [OK] |
-| **Online 1-Pass (Warp Shfl)** | 1024x1024 | ~0.089 ms | ~94.3 GB/s | **1.33x** | 2.98e-07 | PASS [OK] |
+| **Standard 3-Pass (Warp Shfl)** | 1024x1024 | 0.175 ms | 47.9 GB/s | 1.00x | 1.86e-09 | PASS [OK] |
+| **Online 1-Pass (Warp Shfl)** | 1024x1024 | 0.134 ms | 62.7 GB/s | **1.31x** | 2.79e-09 | PASS [OK] |
