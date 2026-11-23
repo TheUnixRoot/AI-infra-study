@@ -1,0 +1,149 @@
+################ MODO BAD
+
+ ** NVTX Range Summary (nvtx_sum):
+
+ Time (%)  Total Time (ns)  Instances   Avg (ns)     Med (ns)    Min (ns)   Max (ns)   StdDev (ns)   Style                    Range                 
+ --------  ---------------  ---------  -----------  -----------  ---------  ---------  -----------  -------  ---------------------------------------
+     46,0       4127642526         20  206382126,0  206375547,0  205030257  207578855     566261,0  PushPop  :Antipattern_A_Sync_Item_Pipeline_Stall
+      3,0        269501314         20   13475065,0   13277738,0   12702896   14868159     580457,0  PushPop  :Antipattern_C_200_Unfused_Kernels     
+      2,0        225597424          1  225597424,0  225597424,0  225597424  225597424          0,0  PushPop  :Iteration_7                           
+      2,0        224491191          1  224491191,0  224491191,0  224491191  224491191          0,0  PushPop  :Iteration_0                           
+      2,0        224473042          1  224473042,0  224473042,0  224473042  224473042          0,0  PushPop  :Iteration_2                           
+      2,0        224369978          1  224369978,0  224369978,0  224369978  224369978          0,0  PushPop  :Iteration_15                          
+      2,0        224187810          1  224187810,0  224187810,0  224187810  224187810          0,0  PushPop  :Iteration_6                           
+      2,0        224047815          1  224047815,0  224047815,0  224047815  224047815          0,0  PushPop  :Iteration_11                          
+      2,0        223847920          1  223847920,0  223847920,0  223847920  223847920          0,0  PushPop  :Iteration_12                          
+      2,0        223595879          1  223595879,0  223595879,0  223595879  223595879          0,0  PushPop  :Iteration_18                          
+      2,0        223491023          1  223491023,0  223491023,0  223491023  223491023          0,0  PushPop  :Iteration_5                           
+      2,0        223419338          1  223419338,0  223419338,0  223419338  223419338          0,0  PushPop  :Iteration_10                          
+      2,0        223415567          1  223415567,0  223415567,0  223415567  223415567          0,0  PushPop  :Iteration_17                          
+      2,0        223383383          1  223383383,0  223383383,0  223383383  223383383          0,0  PushPop  :Iteration_9                           
+      2,0        223382379          1  223382379,0  223382379,0  223382379  223382379          0,0  PushPop  :Iteration_8                           
+      2,0        223353155          1  223353155,0  223353155,0  223353155  223353155          0,0  PushPop  :Iteration_13                          
+      2,0        223280295          1  223280295,0  223280295,0  223280295  223280295          0,0  PushPop  :Iteration_16                          
+      2,0        223243534          1  223243534,0  223243534,0  223243534  223243534          0,0  PushPop  :Iteration_19                          
+      2,0        223111739          1  223111739,0  223111739,0  223111739  223111739          0,0  PushPop  :Iteration_1                           
+      2,0        223107567          1  223107567,0  223107567,0  223107567  223107567          0,0  PushPop  :Iteration_4                           
+      2,0        223095673          1  223095673,0  223095673,0  223095673  223095673          0,0  PushPop  :Iteration_14                          
+      2,0        223094814          1  223094814,0  223094814,0  223094814  223094814          0,0  PushPop  :Iteration_3                           
+      0,0         74160733         20    3708036,0    3600721,0    3326079    5591156     492007,0  PushPop  :Antipattern_B_Pageable_Sync_H2D       
+
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls   Avg (ns)   Med (ns)   Min (ns)  Max (ns)   StdDev (ns)               Name              
+ --------  ---------------  ---------  ----------  ---------  --------  ---------  -----------  -------------------------------
+     91,0       4948939748         50  98978795,0   518849,0    234344  207250832  103782163,0  cudaStreamSynchronize          
+      6,0        341727186      15026     22742,0     5296,0      4386  206303552    1689058,0  cudaLaunchKernel               
+      1,0         80368251         50   1607365,0  1377349,0     11424    4563089    1626528,0  cudaMemcpyAsync                
+      0,0         32155241        111    289686,0     1595,0       373   31936533    3031094,0  cudaStreamIsCapturing_v10000   
+      0,0          1561029          6    260171,0   243163,0    186542     349938      58406,0  cudaMalloc                     
+      0,0           678275          1    678275,0   678275,0    678275     678275          0,0  cudaHostAlloc                  
+      0,0           451654         80      5645,0     4508,0      2097      29715       4604,0  cudaEventRecordWithFlags_v11010
+      0,0           305157         25     12206,0    10511,0      8795      34262       5688,0  cudaMemsetAsync                
+      0,0           227649         25      9106,0     7362,0      6014      40033       7017,0  cudaDeviceSynchronize          
+      0,0           115664         80      1445,0      573,0       441      15931       2164,0  cudaEventQuery                 
+      0,0            70076        439       159,0      122,0        69       2254        184,0  cuGetProcAddress_v2            
+      0,0            24503          4      6125,0     4774,0      1429      13526       5198,0  cudaEventCreateWithFlags       
+      0,0            14353          1     14353,0    14353,0     14353      14353          0,0  cuCtxSynchronize               
+      0,0            11186          4      2796,0      507,0       387       9785       4659,0  cudaEventDestroy               
+      0,0             3793          1      3793,0     3793,0      3793       3793          0,0  cuInit                         
+      0,0             3176          2      1588,0     1588,0       285       2891       1842,0  cuModuleGetLoadingMode         
+      0,0              539          2       269,0      269,0       259        280         14,0  cuDeviceGetLuid                
+
+
+ ** CUDA GPU Kernel Summary (cuda_gpu_kern_sum):
+
+ Time (%)  Total Time (ns)  Instances  Avg (ns)  Med (ns)  Min (ns)  Max (ns)  StdDev (ns)                                                  Name                                                
+ --------  ---------------  ---------  --------  --------  --------  --------  -----------  ----------------------------------------------------------------------------------------------------
+     33,0       1809796625       5000  361959,0  361575,0    357448    695824      10255,0  void at::native::vectorized_elementwise_kernel<(int)4, at::native::AUnaryFunctor<float, float, floa…
+     33,0       1809238077       5000  361847,0  361512,0    359848    720879       9069,0  void at::native::vectorized_elementwise_kernel<(int)4, at::native::CUDAFunctorOnSelf_add<float>, st…
+     33,0       1809175268       5000  361835,0  361448,0    358280    701103       9233,0  void at::native::vectorized_elementwise_kernel<(int)4, at::native::<unnamed>::launch_clamp_scalar(a…
+      0,0          4340956         25  173638,0  173187,0    171203    176067       1162,0  void at::native::reduce_kernel<(int)512, (int)1, at::native::ReduceOp<float, at::native::MeanOps<fl…
+      0,0             1952          1    1952,0    1952,0      1952      1952          0,0  void at::native::vectorized_elementwise_kernel<(int)4, at::native::FillFunctor<float>, std::array<c…
+
+
+ ** CUDA GPU MemOps Summary (by Time) (cuda_gpu_mem_time_sum):
+
+ Time (%)  Total Time (ns)  Count  Avg (ns)   Med (ns)   Min (ns)  Max (ns)  StdDev (ns)           Operation          
+ --------  ---------------  -----  ---------  ---------  --------  --------  -----------  ----------------------------
+     99,0         75708583     25  3028343,0  2980258,0   2675867   4274206     341801,0  [CUDA memcpy Host-to-Device]
+      0,0            50461     25     2018,0     1312,0      1088     10144       2400,0  [CUDA memset]               
+      0,0            43522     25     1740,0     1728,0      1504      1952         84,0  [CUDA memcpy Device-to-Host]
+
+################ MODO OPT
+
+ ** NVTX Range Summary (nvtx_sum):
+
+ Time (%)  Total Time (ns)  Instances   Avg (ns)     Med (ns)    Min (ns)   Max (ns)   StdDev (ns)   Style                Range              
+ --------  ---------------  ---------  -----------  -----------  ---------  ---------  -----------  -------  --------------------------------
+      6,0        281086844         20   14054342,0   13907846,0   12969809   16887932     890183,0  PushPop  :Opt_C_Fused_Loop_Kernel        
+      4,0        222218967          1  222218967,0  222218967,0  222218967  222218967          0,0  PushPop  :Iteration_1                    
+      4,0        222134279          1  222134279,0  222134279,0  222134279  222134279          0,0  PushPop  :Iteration_15                   
+      4,0        222089287          1  222089287,0  222089287,0  222089287  222089287          0,0  PushPop  :Iteration_10                   
+      4,0        222004203          1  222004203,0  222004203,0  222004203  222004203          0,0  PushPop  :Iteration_19                   
+      4,0        221930498          1  221930498,0  221930498,0  221930498  221930498          0,0  PushPop  :Iteration_0                    
+      4,0        221794387          1  221794387,0  221794387,0  221794387  221794387          0,0  PushPop  :Iteration_6                    
+      4,0        221642017          1  221642017,0  221642017,0  221642017  221642017          0,0  PushPop  :Iteration_5                    
+      4,0        221289330          1  221289330,0  221289330,0  221289330  221289330          0,0  PushPop  :Iteration_2                    
+      4,0        221065072          1  221065072,0  221065072,0  221065072  221065072          0,0  PushPop  :Iteration_9                    
+      4,0        221056754          1  221056754,0  221056754,0  221056754  221056754          0,0  PushPop  :Iteration_13                   
+      4,0        221013872          1  221013872,0  221013872,0  221013872  221013872          0,0  PushPop  :Iteration_17                   
+      4,0        221004171          1  221004171,0  221004171,0  221004171  221004171          0,0  PushPop  :Iteration_18                   
+      4,0        220991454          1  220991454,0  220991454,0  220991454  220991454          0,0  PushPop  :Iteration_12                   
+      4,0        220936317          1  220936317,0  220936317,0  220936317  220936317          0,0  PushPop  :Iteration_3                    
+      4,0        220910898          1  220910898,0  220910898,0  220910898  220910898          0,0  PushPop  :Iteration_4                    
+      4,0        220890564          1  220890564,0  220890564,0  220890564  220890564          0,0  PushPop  :Iteration_16                   
+      4,0        220882719          1  220882719,0  220882719,0  220882719  220882719          0,0  PushPop  :Iteration_8                    
+      4,0        220847593          1  220847593,0  220847593,0  220847593  220847593          0,0  PushPop  :Iteration_14                   
+      4,0        220834488          1  220834488,0  220834488,0  220834488  220834488          0,0  PushPop  :Iteration_7                    
+      4,0        220809111          1  220809111,0  220809111,0  220809111  220809111          0,0  PushPop  :Iteration_11                   
+      0,0          3577810         20     178890,0     164847,0     121779     281864      48110,0  PushPop  :Opt_A_Device_Async_Accumulation
+      0,0          3502439         20     175122,0     168919,0     156111     225149      19923,0  PushPop  :Opt_B_Pinned_Async_H2D         
+
+
+ ** CUDA API Summary (cuda_api_sum):
+
+ Time (%)  Total Time (ns)  Num Calls   Avg (ns)     Med (ns)    Min (ns)  Max (ns)   StdDev (ns)                 Name               
+ --------  ---------------  ---------  -----------  -----------  --------  ---------  -----------  ----------------------------------
+     91,0       4960467735         25  198418709,0  206593743,0    344833  207592145   41271664,0  cudaDeviceSynchronize             
+      6,0        345327610      15046      22951,0       5416,0      4475  204174579    1670723,0  cudaLaunchKernel                  
+      2,0        130436400          2   65218200,0   65218200,0    419317  130017083   91639459,0  cudaHostAlloc                     
+      0,0          3575147        128      27930,0        885,0       721    1357089     156875,0  cudaStreamCreateWithPriority      
+      0,0          1337055          6     222842,0     224248,0    154400     283867      47829,0  cudaMalloc                        
+      0,0           497808         81       6145,0       4095,0      1763      24639       5619,0  cudaEventRecordWithFlags_v11010   
+      0,0           488270         26      18779,0      17664,0     13189      30334       4001,0  cudaMemcpyAsync                   
+      0,0           340912         25      13636,0      10950,0      8967      44573       7955,0  cudaMemsetAsync                   
+      0,0           301875          1     301875,0     301875,0    301875     301875          0,0  cudaStreamSynchronize             
+      0,0           178741        114       1567,0       1468,0       388       9371       1115,0  cudaStreamIsCapturing_v10000      
+      0,0           114819         80       1435,0        603,0       307      16629       2184,0  cudaEventQuery                    
+      0,0            69918        439        159,0        122,0        69       2160        184,0  cuGetProcAddress_v2               
+      0,0            25343          1      25343,0      25343,0     25343      25343          0,0  cuCtxSynchronize                  
+      0,0            23018          5       4603,0       2622,0      1272      12737       4674,0  cudaEventCreateWithFlags          
+      0,0            18924          4       4731,0        534,0       442      17414       8455,0  cudaEventDestroy                  
+      0,0             3262          1       3262,0       3262,0      3262       3262          0,0  cudaStreamGetCaptureInfo_v2_v11030
+      0,0             2802          2       1401,0       1401,0        72       2730       1879,0  cuModuleGetLoadingMode            
+      0,0             2442          1       2442,0       2442,0      2442       2442          0,0  cuInit                            
+      0,0              354          2        177,0        177,0       162        192         21,0  cuDeviceGetLuid                   
+
+
+ ** CUDA GPU Kernel Summary (cuda_gpu_kern_sum):
+
+ Time (%)  Total Time (ns)  Instances  Avg (ns)  Med (ns)  Min (ns)  Max (ns)  StdDev (ns)                                                  Name                                                
+ --------  ---------------  ---------  --------  --------  --------  --------  -----------  ----------------------------------------------------------------------------------------------------
+     33,0       1809169252       5000  361833,0  361416,0    357384    863379      11362,0  void at::native::vectorized_elementwise_kernel<(int)4, at::native::<unnamed>::launch_clamp_scalar(a…
+     33,0       1808644173       5000  361728,0  361480,0    358119    711471       8665,0  void at::native::vectorized_elementwise_kernel<(int)4, at::native::CUDAFunctorOnSelf_add<float>, st…
+     33,0       1808451969       5000  361690,0  361448,0    356776    696623       7906,0  void at::native::vectorized_elementwise_kernel<(int)4, at::native::AUnaryFunctor<float, float, floa…
+      0,0          4344960         25  173798,0  173604,0    171940    176100       1218,0  void at::native::reduce_kernel<(int)512, (int)1, at::native::ReduceOp<float, at::native::MeanOps<fl…
+      0,0            52832         20    2641,0    1920,0      1728      7553       1338,0  void at::native::vectorized_elementwise_kernel<(int)4, at::native::CUDAFunctor_add<float>, std::arr…
+      0,0             1952          1    1952,0    1952,0      1952      1952          0,0  void at::native::vectorized_elementwise_kernel<(int)4, at::native::FillFunctor<float>, std::array<c…
+
+
+ ** CUDA GPU MemOps Summary (by Time) (cuda_gpu_mem_time_sum):
+
+ Time (%)  Total Time (ns)  Count  Avg (ns)   Med (ns)   Min (ns)  Max (ns)  StdDev (ns)           Operation          
+ --------  ---------------  -----  ---------  ---------  --------  --------  -----------  ----------------------------
+     99,0         34539260     25  1381570,0  1331582,0   1298557   1843241     118853,0  [CUDA memcpy Host-to-Device]
+      0,0            46850     25     1874,0     1312,0      1120     15744       2889,0  [CUDA memset]               
+      0,0             2143      1     2143,0     2143,0      2143      2143          0,0  [CUDA memcpy Device-to-Host]
+

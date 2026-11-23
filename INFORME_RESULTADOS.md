@@ -62,7 +62,9 @@ Pascal. Esas cifras del README eran proyecciones no medidas y se han sustituido 
 ## 4. B1.3: Profiling de antipatrones (CUDA events + trazas nsys reales)
 
 Tensor 2048×2048, 200 operaciones element-wise, 20 iteraciones (+5 warmup). Trazas con Nsight Systems 2024.5.1
-nativo de Windows (`artifacts/b1_3_bad.nsys-rep`, `artifacts/b1_3_opt.nsys-rep`).
+nativo de Windows. Las tablas `nsys stats` (nvtx, API CUDA, kernels, memoria) están en
+`artifacts/b1_3_nsys_stats.txt`. Los `.nsys-rep` no se versionan: embeben las variables de entorno del proceso
+(pueden contener secretos) y se regeneran con `b1_3_profiling/run.sh`.
 
 | Métrica | BAD | OPT | Mejora |
 | :--- | :---: | :---: | :---: |
