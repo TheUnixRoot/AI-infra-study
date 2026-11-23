@@ -4,7 +4,7 @@
 # ==============================================================================
 
 NVCC := nvcc
-ARCH := -arch=sm_61
+ARCH := -arch=$(or $(CUDA_ARCH),sm_61)
 CFLAGS := -O3 $(ARCH) -std=c++14 --compiler-options '-fPIC -Wall -Wextra'
 LIBS := -lcublas
 

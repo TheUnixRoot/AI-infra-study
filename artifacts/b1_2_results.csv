@@ -1,0 +1,11 @@
+benchmark,kernel,dimension,latency_ms,throughput,throughput_unit,speedup,verified
+gemm,cublasSgemm (Ref),1024x1024x1024,1.373,1563.73,GFLOP/s,53.51,True
+gemm,gemm_naive,1024x1024x1024,73.49,29.22,GFLOP/s,1.0,True
+gemm,gemm_coalesced,1024x1024x1024,17.955,119.6,GFLOP/s,4.09,True
+gemm,gemm_smem_tiled,1024x1024x1024,7.589,282.97,GFLOP/s,9.68,True
+gemm,cublasSgemm (Ref),2048x2048x2048,10.559,1627.11,GFLOP/s,67.68,True
+gemm,gemm_naive,2048x2048x2048,714.583,24.04,GFLOP/s,1.0,True
+gemm,gemm_coalesced,2048x2048x2048,148.615,115.6,GFLOP/s,4.81,True
+gemm,gemm_smem_tiled,2048x2048x2048,61.104,281.16,GFLOP/s,11.69,True
+softmax,Standard 3-Pass (Warp Shfl),1024x1024,0.1752,47.88,GB/s,1.0,True
+softmax,Online 1-Pass (Warp Shfl),1024x1024,0.1339,62.67,GB/s,1.31,True

@@ -16,7 +16,7 @@ CSV_OUTPUT="${ARTIFACTS_DIR}/b1_2_results.csv"
 GEMM_BIN="${SCRIPT_DIR}/gemm_bench"
 SOFTMAX_BIN="${SCRIPT_DIR}/warp_online_softmax"
 
-NVCC_FLAGS="-O3 -arch=sm_61 -std=c++14 --compiler-options '-fPIC -Wall -Wextra'"
+NVCC_FLAGS="-O3 -arch=${CUDA_ARCH:-sm_61} -std=c++14 -Xcompiler -fPIC,-Wall,-Wextra"
 
 print_header() {
     echo "=============================================================================="
@@ -134,8 +134,10 @@ echo "  [OK] Binarios compilados exitosamente en ${SCRIPT_DIR}/"
 # 5. Ejecucion de Smoke-Test (<30s)
 echo ""
 echo "[3/4] Ejecutando Smoke-Test de verificacion rapida (dim 256x256)..."
-"${GEMM_BIN}" --smoke
-"${SOFTMAX_BIN}" --smoke
+RESULTS_TMP="$(mktemp -d)"
+trap 'rm -rf "${RESULTS_TMP}"' EXIT
+"${GEMM_BIN}" --smoke > "${RESULTS_TMP}/gemm.out"; cat "${RESULTS_TMP}/gemm.out"
+"${SOFTMAX_BIN}" --smoke > "${RESULTS_TMP}/softmax.out"; cat "${RESULTS_TMP}/softmax.out"
 
 if [ "${MODE}" = "smoke" ]; then
     echo ""
@@ -146,72 +148,18 @@ fi
 if [ "${MODE}" = "full" ]; then
     echo ""
     echo "[4/4] Ejecutando Benchmark Completo (1024x1024 y 2048x2048)..."
-    GEMM_OUT=$("${GEMM_BIN}" --full)
-    echo "${GEMM_OUT}"
+    "${GEMM_BIN}" --full > "${RESULTS_TMP}/gemm.out"; cat "${RESULTS_TMP}/gemm.out"
 
     echo ""
-    SOFTMAX_OUT=$("${SOFTMAX_BIN}" --rows 1024 --cols 1024 --warmup 20 --iters 100)
-    echo "${SOFTMAX_OUT}"
+    "${SOFTMAX_BIN}" --rows 1024 --cols 1024 --warmup 20 --iters 100 > "${RESULTS_TMP}/softmax.out"; cat "${RESULTS_TMP}/softmax.out"
 fi
 
 # 7. Generacion de Artefactos (CSV y JSON)
 echo ""
 echo "[INFO] Generando artefactos en ${ARTIFACTS_DIR}..."
 
-# Exportar CSV estructurado
-cat << EOF > "${CSV_OUTPUT}"
-benchmark,kernel,dimension,metric_unit,metric_value,speedup_vs_baseline,status
-gemm,cublasSgemm,256x256x256,GFLOP/s,REFERENCE,1.00,PASS
-gemm,gemm_naive,256x256x256,GFLOP/s,MEASURED,1.00,PASS
-gemm,gemm_coalesced,256x256x256,GFLOP/s,MEASURED,SPEEDUP,PASS
-gemm,gemm_smem_tiled,256x256x256,GFLOP/s,MEASURED,SPEEDUP,PASS
-softmax,standard_3pass,1024x1024,ms,LATENCY,1.00,PASS
-softmax,online_1pass,1024x1024,ms,LATENCY,SPEEDUP,PASS
-EOF
-
-# Exportar JSON estructurado
-cat << EOF > "${JSON_OUTPUT}"
-{
-  "experiment": "B1.2 - Fundamentos de CUDA C++ en Local",
-  "target_hardware": {
-    "gpu": "${GPU_NAME}",
-    "architecture": "Pascal (sm_61)",
-    "vram_gb": 2.0,
-    "bandwidth_theoretical_gb_s": 112.0,
-    "driver_version": "${GPU_DRIVER}",
-    "clocks": "${GPU_CLOCKS}"
-  },
-  "execution_mode": "${MODE}",
-  "kernels_evaluated": [
-    {
-      "name": "gemm_naive",
-      "mapping": "threadIdx.x -> row, threadIdx.y -> col",
-      "memory_access": "Uncoalesced (strided by K floats per lane)",
-      "shared_memory_bytes": 0
-    },
-    {
-      "name": "gemm_coalesced",
-      "mapping": "threadIdx.x -> col, threadIdx.y -> row",
-      "memory_access": "Coalesced (128B DRAM lines for B, broadcast for A)",
-      "shared_memory_bytes": 0
-    },
-    {
-      "name": "gemm_smem_tiled",
-      "mapping": "32x32 cooperative tile with double __syncthreads()",
-      "memory_access": "Tile reuse (up to 32x DRAM traffic reduction), 0 bank conflicts",
-      "shared_memory_bytes": 8192
-    },
-    {
-      "name": "warp_online_softmax",
-      "algorithm": "1-Pass Online Softmax (Milakov & Gimelshein / FlashAttention)",
-      "intra_warp_reduction": "__shfl_down_sync with associative rescale",
-      "shared_memory_bytes": 0,
-      "max_abs_error_vs_cpu": "< 1e-5"
-    }
-  ],
-  "verification_status": "ALL_TESTS_PASSED"
-}
-EOF
+# CSV + JSON con las medidas reales parseadas de la salida de los binarios
+python3 "${SCRIPT_DIR}/parse_results.py" "${RESULTS_TMP}/gemm.out" "${RESULTS_TMP}/softmax.out"     "${MODE}" "${GPU_NAME}" "${GPU_DRIVER}" "${JSON_OUTPUT}" "${CSV_OUTPUT}"
 
 echo "  -> JSON generado: ${JSON_OUTPUT}"
 echo "  -> CSV generado:  ${CSV_OUTPUT}"

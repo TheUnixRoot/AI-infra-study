@@ -1,0 +1,105 @@
+{
+  "experiment": "B1.2 - CUDA C++ GEMM & Warp Online Softmax",
+  "timestamp": "2026-11-23T15:52:29.461654+00:00",
+  "target_hardware": {
+    "gpu": "NVIDIA GeForce GTX 1050",
+    "architecture": "Pascal (sm_61)",
+    "driver_version": "581.57"
+  },
+  "execution_mode": "full",
+  "gemm": [
+    {
+      "kernel": "cublasSgemm (Ref)",
+      "dimension": "1024x1024x1024",
+      "latency_ms": 1.373,
+      "gflops": 1563.73,
+      "speedup_vs_naive": 53.51,
+      "verified": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "kernel": "gemm_naive",
+      "dimension": "1024x1024x1024",
+      "latency_ms": 73.49,
+      "gflops": 29.22,
+      "speedup_vs_naive": 1.0,
+      "verified": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "kernel": "gemm_coalesced",
+      "dimension": "1024x1024x1024",
+      "latency_ms": 17.955,
+      "gflops": 119.6,
+      "speedup_vs_naive": 4.09,
+      "verified": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "kernel": "gemm_smem_tiled",
+      "dimension": "1024x1024x1024",
+      "latency_ms": 7.589,
+      "gflops": 282.97,
+      "speedup_vs_naive": 9.68,
+      "verified": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "kernel": "cublasSgemm (Ref)",
+      "dimension": "2048x2048x2048",
+      "latency_ms": 10.559,
+      "gflops": 1627.11,
+      "speedup_vs_naive": 67.68,
+      "verified": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "kernel": "gemm_naive",
+      "dimension": "2048x2048x2048",
+      "latency_ms": 714.583,
+      "gflops": 24.04,
+      "speedup_vs_naive": 1.0,
+      "verified": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "kernel": "gemm_coalesced",
+      "dimension": "2048x2048x2048",
+      "latency_ms": 148.615,
+      "gflops": 115.6,
+      "speedup_vs_naive": 4.81,
+      "verified": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "kernel": "gemm_smem_tiled",
+      "dimension": "2048x2048x2048",
+      "latency_ms": 61.104,
+      "gflops": 281.16,
+      "speedup_vs_naive": 11.69,
+      "verified": true,
+      "max_abs_error": 0.0
+    }
+  ],
+  "softmax": [
+    {
+      "kernel": "Standard 3-Pass (Warp Shfl)",
+      "dimension": "1024x1024",
+      "latency_ms": 0.1752,
+      "effective_bw_gb_s": 47.88,
+      "speedup_vs_3pass": 1.0,
+      "max_abs_error": 1.86e-09,
+      "verified": true
+    },
+    {
+      "kernel": "Online 1-Pass (Warp Shfl)",
+      "dimension": "1024x1024",
+      "latency_ms": 0.1339,
+      "effective_bw_gb_s": 62.67,
+      "speedup_vs_3pass": 1.31,
+      "max_abs_error": 2.79e-09,
+      "verified": true
+    }
+  ],
+  "verification_status": "ALL_TESTS_PASSED"
+}
