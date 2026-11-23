@@ -1,6 +1,6 @@
 {
   "experiment_id": "B1.1_strides_bench",
-  "timestamp": "2026-11-23T15:33:26.949471+00:00",
+  "timestamp": "2026-11-23T17:15:13.854662+00:00",
   "target_hardware": {
     "model": "NVIDIA GeForce GTX 1050",
     "architecture": "sm_61 (Pascal GP107)",
@@ -61,18 +61,18 @@
       "warmup_iterations": 20,
       "benchmark_iterations": 50,
       "gpu_time_ms": {
-        "mean": 0.0035430400539189577,
-        "median": 0.0030720001086592674,
+        "mean": 0.0036454400420188903,
+        "median": 0.004095999989658594,
         "min": 0.0030720001086592674,
         "max": 0.004095999989658594,
-        "std": 0.0005103589108280565
+        "std": 0.0005083001734694048
       },
       "cpu_dispatch_us": {
-        "mean": 102.28399999999999,
-        "median": 92.7,
-        "min": 65.7,
-        "max": 176.9,
-        "std": 36.735026119495274
+        "mean": 131.912,
+        "median": 127.9,
+        "min": 92.3,
+        "max": 332.0,
+        "std": 41.36230477137365
       }
     },
     "contiguous": {
@@ -107,31 +107,34 @@
       "warmup_iterations": 20,
       "benchmark_iterations": 50,
       "gpu_time_ms": {
-        "mean": 1.0039104104042054,
-        "median": 1.004032015800476,
-        "min": 0.9953280091285706,
-        "max": 1.0117119550704956,
-        "std": 0.0032697510688102596
+        "mean": 1.0035616111755372,
+        "median": 1.0035200119018555,
+        "min": 0.9963520169258118,
+        "max": 1.0168319940567017,
+        "std": 0.003600195639243139
       },
       "effective_bandwidth_gb_s": {
-        "mean": 33.42373149262387,
-        "peak": 33.71193384719232
+        "mean": 33.435348289872806,
+        "peak": 33.67728616993251
       },
       "effective_bandwidth_gib_s": {
-        "mean": 31.128275666966918,
-        "peak": 31.396685025833843
+        "mean": 31.13909465248958,
+        "peak": 31.364416861843793
       },
       "theoretical_peak_gb_s": 112.0,
       "bus_saturation_pct": {
-        "mean": 29.842617404128458,
-        "peak": 30.099940934993143
+        "mean": 29.85298954452929,
+        "peak": 30.06900550886831
       }
     }
   },
   "summary": {
     "transpose_is_zero_copy": true,
     "contiguous_allocates_physical_memory": true,
-    "effective_bandwidth_gb_s": 33.42373149262387,
-    "bus_saturation_pct": 29.842617404128458
+    "effective_bandwidth_gb_s": 33.435348289872806,
+    "bus_saturation_pct": 29.85298954452929,
+    "clone_baseline_gpu_time_ms": 0.36564992427825926,
+    "clone_baseline_bandwidth_gb_s": 91.7665498392531,
+    "transpose_copy_vs_clone_slowdown_x": 2.744596797487172
   }
 }

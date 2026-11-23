@@ -1,0 +1,3 @@
+artifacts/*.sqlite
+artifacts/b1_3_summary_bad.json
+artifacts/b1_3_summary_opt.json

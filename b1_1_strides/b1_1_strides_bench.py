@@ -86,7 +86,10 @@ class BenchmarkResult:
         self.effective_bw_gb_s: Dict[str, float] = {}
         self.effective_bw_gib_s: Dict[str, float] = {}
         self.bus_saturation_pct: Dict[str, float] = {}
-        
+        # Sequential-copy baseline (x.clone()): practical bandwidth ceiling of the card.
+        self.clone_gpu_time_ms: Optional[float] = None
+        self.clone_bw_gb_s: Optional[float] = None
+
         self.warmup_iters: int = 20
         self.bench_iters: int = 50
 
@@ -226,6 +229,23 @@ def run_cuda_benchmark(size: int, warmup_iters: int, bench_iters: int) -> Benchm
         "peak": (peak_bw_gb_s / THEORETICAL_PEAK_BW_GB_S) * 100.0,
     }
 
+    # 4. Baseline: x.clone() is a fully coalesced sequential copy (same traffic as the
+    # transposed copy). It shows what the card can really sustain, so the gap to
+    # y.contiguous() isolates the cost of the strided (non-coalesced) access pattern.
+    for _ in range(warmup_iters):
+        _ = x.clone()
+    torch.cuda.synchronize()
+    clone_samples: List[float] = []
+    for _ in range(bench_iters):
+        torch.cuda.synchronize()
+        start_event.record()
+        _c = x.clone()
+        end_event.record()
+        torch.cuda.synchronize()
+        clone_samples.append(start_event.elapsed_time(end_event))
+    res.clone_gpu_time_ms = compute_stats(clone_samples)["mean"]
+    res.clone_bw_gb_s = res.z_traffic_bytes / (res.clone_gpu_time_ms / 1000.0 * 1e9)
+
     return res
 
 
@@ -363,6 +383,10 @@ def print_summary_table(res: BenchmarkResult) -> None:
     bw_str = f"{res.effective_bw_gb_s['mean']:.2f} GB/s"
     sat_str = f"{res.bus_saturation_pct['mean']:.1f}%"
     print(f"{'z = y.contiguous()':<24} | {c_shape_stride:<22} | {'YES':<7} | {c_ptr_str:<12} | {traffic_mb_str:<10} | {c_lat_str:<12} | {bw_str:<14} | {sat_str:<8}")
+    if res.clone_bw_gb_s is not None:
+        cl_pct = res.clone_bw_gb_s / THEORETICAL_PEAK_BW_GB_S * 100.0
+        print(f"{'x.clone() (baseline)':<24} | {'sequential, coalesced':<22} | {'YES':<7} | {'NEW ALLOC':<12} | {traffic_mb_str:<10} | "
+              f"{res.clone_gpu_time_ms:.4f} ms{'':<4} | {res.clone_bw_gb_s:.2f} GB/s{'':<3} | {cl_pct:.1f}%")
     print(sep_single)
 
     # Engineering Analysis Notes
@@ -463,6 +487,11 @@ def export_metrics_json(res: BenchmarkResult, output_path: str) -> None:
             "contiguous_allocates_physical_memory": not res.z_ptr_match,
             "effective_bandwidth_gb_s": res.effective_bw_gb_s["mean"],
             "bus_saturation_pct": res.bus_saturation_pct["mean"],
+            "clone_baseline_gpu_time_ms": res.clone_gpu_time_ms,
+            "clone_baseline_bandwidth_gb_s": res.clone_bw_gb_s,
+            "transpose_copy_vs_clone_slowdown_x": (
+                res.z_gpu_time_ms["mean"] / res.clone_gpu_time_ms if res.clone_gpu_time_ms else None
+            ),
         },
     }
 

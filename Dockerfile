@@ -18,6 +18,7 @@
 #       bash -c "cd b1_2_cuda_gemm && ./run.sh --full"
 #   Profiling (nsys/ncu pueden necesitar capacidades extra):
 #       docker run --rm --gpus all --cap-add SYS_ADMIN -v "$PWD":/work ai-infra-study:cloud ...
+#   Nota: nsys dentro de WSL2 captura pero no puede importar la traza con esta GPU (usa nsys nativo en Windows o Linux).
 #   Cloud: recuerda el auto-kill de la VM antes de nada:  sudo shutdown -h +90
 # ==============================================================================
 ARG CUDA_VERSION=12.6.3
