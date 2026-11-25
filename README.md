@@ -41,7 +41,7 @@ Estados: ✅ hecha y medida · 🟡 parcial · ⬜ pendiente. Modos: `[MOB]` lec
 | ID | Unidad | Modo | Estado | Práctica |
 | :--- | :--- | :---: | :---: | :--- |
 | B2.1 | Aritmética del KV-Cache | `[MOB]` `[LOC]` | ✅ | [`b2_1_kv_cache/`](b2_1_kv_cache/README.md) |
-| B2.2 | vLLM vs SGLang y FlashInfer | `[PREP]` `[CLD]` | ⬜ Cloud-2 | — |
+| B2.2 | [vLLM vs SGLang y FlashInfer](b2_2_vllm_vs_sglang/README.md) | `[PREP]` ✅ `[CLD]` | 🟡 PREP hecho, Cloud-2 pendiente | — |
 | B2.3 | TensorRT-LLM y NVIDIA Dynamo | `[MOB]` `[LOC]` | ⬜ | — |
 | B2.4 | Cargas agénticas (prefix cache + JSON) | `[PREP]` `[CLD]` | ⬜ Cloud-2 | — |
 
