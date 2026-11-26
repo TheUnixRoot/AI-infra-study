@@ -16,7 +16,7 @@ Para evitar chats infinitos que degraden el contexto del LLM y pierdan trazabili
    - **Tu Agente de Código (CLI/IDE):** Escribe código boilerplate, Dockerfiles, scripts de benchmark, Terraform/scripts de aprovisionamiento y ejecuta pruebas contra tu GTX 1050 o instancias SSH en Nebius/Scaleway.
 3. **Clasificación de Micro-Sprints (20 min):**
    - `[MOB]` **Móvil (Solo lectura/texto):** Cero hardware. Lectura de blogs técnicos, glosarios o papers + 2-3 preguntas de comprobación en el chat del bloque.
-   - `[LOC]` **Local (GTX 1050 / CPU):** Compilación CUDA C++, `nsys`, Linux `perf`, PyTorch FP32 en tensores pequeños o simuladores offline (`aisim`).
+   - `[LOC]` **Local (GTX 1050 / CPU):** Compilación CUDA C++, `nsys`, Linux `perf`, PyTorch FP32 en tensores pequeños o simuladores offline (`aiconfigurator`).
    - `[PREP]` **Pre-Flight Cloud (0 EUR):** Con tu agente de código, preparas el script reproducible, `Dockerfile` y comandos exactos *antes* de alquilar la GPU. **Prohibido alquilar una GPU sin haber completado su `[PREP]`.**
    - `[CLD]` **Ráfaga Cloud (Nebius / Scaleway):** Alquiler por horas (objetivo: 1–2 micro-sprints consecutivos o ejecución desatendida con *auto-shutdown*). Arrancas, ejecutas el script de `[PREP]`, descargas trazas/CSVs/JSONs y apagas la VM.
 4. **Regla de Auto-Kill en Cloud:** Todo script de aprovisionamiento en Nebius o Scaleway debe incluir un temporizador de apagado automático al inicio de la sesión:
@@ -108,7 +108,7 @@ Requisitos:
 | CUDA C++ (`nvcc`), *warps*, *shared memory*, `streams` | **SÍ** | Base idéntica a arquitecturas modernas para fundamentos. |
 | PyTorch internals (strides, `autograd`, FP32 mini-redes) | **SÍ** | Usar tensores pequeños (`< 512 MB`) para evitar OOM. |
 | **Nsight Systems (`nsys`)** y **Linux `perf`** | **SÍ** | Excelente para detectar cuello de botella CPU/Python/syncs. |
-| **OpenAI Triton** / **Nsight Compute (`ncu`)** moderno | **NO** | Requieren Volta (`sm_70`) / Turing (`sm_75`) o superior. Alquilar 1x L4/L40S. |
+| **OpenAI Triton** / **Nsight Compute (`ncu`)** moderno | **NO** | `torch.compile`/Inductor exige `sm_70`+ y el soporte oficial de Triton es más estricto (`sm_80`+, ver su documentación); la 1050 es `sm_61`. Alquilar 1x L4/L40S. |
 | **FlashAttention / FlashInfer / SGLang / TRT-LLM** | **NO** | Requieren Ampere (`sm_80+`). Alquilar 1x L40S o H100. |
 | **FP8 nativo** (Transformer Engine / FP8 GEMM) | **NO** | Requiere Ada (`sm_89`, L40S) o Hopper (`sm_90`, H100). |
 | **Multi-GPU (TP, EP, PDD, NCCL NVLink/IB)** | **NO** | Alquilar nodo 2x–8x L40S o H100 en Nebius/Scaleway. |
@@ -229,17 +229,17 @@ Requisitos:
 - **Done:** Tienes tablas reales de latencia/throughput comparando vLLM vs. SGLang bajo la misma carga y entiendes por qué varía el *overhead* de CPU al subir la concurrencia.
 
 ### `[B2.3]` TensorRT-LLM y Arquitectura NVIDIA Dynamo (Offline + Cloud)
-- **Tipo:** `[MOB]` (3 sprints) + `[LOC]` (1 sprint con `aisim` / `aiconfigurator`) + `[CLD]` (opcional dentro de Cloud-2)
+- **Tipo:** `[MOB]` (3 sprints) + `[LOC]` (1 sprint con `aiconfigurator`) + `[CLD]` (opcional dentro de Cloud-2)
 - **Depende de:** `B2.2` | **Desbloquea:** `B4.3`, `B5.1`
-- **Infraestructura:** Móvil + CPU local (simulador `aisim`) + opcional `1x H100`
+- **Infraestructura:** Móvil + CPU local (simulador `aiconfigurator`) + opcional `1x H100`
 - **Conceptos clave:**
   - **TensorRT-LLM:** Flujo moderno (PyTorch backend vs. engines compilados con `trtllm-build`), fusión de grafos, *in-flight batching* y *Triton Inference Server* como capa de serving empresarial.
-  - **NVIDIA Dynamo (`ai-dynamo`):** Framework de inferencia distribuida en Rust/Python: *Smart Router* (KV-cache aware), *Disaggregated Serving*, **NIXL** (transferencia de KV-cache), **AIPerf** (benchmarking) y **AISim / AIConfigurator** (simulación offline sin gastar GPU!).
+  - **NVIDIA Dynamo (`ai-dynamo`):** Framework de inferencia distribuida en Rust/Python: *Smart Router* (KV-cache aware), *Disaggregated Serving*, **NIXL** (transferencia de KV-cache), **AIPerf** (benchmarking) y **AIConfigurator** (simulación offline sin gastar GPU!).
 - **Recursos gratuitos en texto (móvil):**
   1. NVIDIA Dynamo GitHub README y docs de arquitectura: `https://github.com/ai-dynamo/dynamo`
   2. NVIDIA TensorRT-LLM Architecture Docs: `https://nvidia.github.io/TensorRT-LLM/`
-  3. NVIDIA AIPerf & AISim repos: `https://github.com/ai-dynamo/aiperf` y `https://github.com/ai-dynamo/aisim`
-- **Micro-práctica (Agente -> CPU local):** Instala/corre `ai-dynamo/aiconfigurator` o `aisim` (offline, 0 EUR en GPU) guiado por tu agente para modelar configuraciones óptimas de serving (TP, batching, SLA de TTFT/TPOT) y contrastar sus predicciones con tus números reales de `B2.2`.
+  3. NVIDIA AIPerf y AIConfigurator: `https://github.com/ai-dynamo/aiperf` · `https://github.com/ai-dynamo/aiconfigurator` (referencia: `https://docs.nvidia.com/dynamo/v1.6.1/additional-resources/ai-configurator-reference`)
+- **Micro-práctica (Agente -> CPU local):** Instala/corre `ai-dynamo/aiconfigurator` (offline, 0 EUR en GPU) guiado por tu agente para modelar configuraciones óptimas de serving (TP, batching, SLA de TTFT/TPOT) y contrastar sus predicciones con tus números reales de `B2.2`.
 - **Done:** Conoces las piezas de NVIDIA Dynamo (Router, Workers, NIXL, AIPerf) y sabes cuándo elegir TensorRT-LLM frente a vLLM/SGLang en producción.
 
 ### `[B2.4]` Optimización de Cargas Agénticas (Tu Ventaja Competitiva)
@@ -376,7 +376,7 @@ Requisitos:
 - **Depende de:** `B4.1`, `B4.2` | **Desbloquea:** `B5.2`, **Proyecto B**
 - **Infraestructura:** **Cloud-4** -> Nebius `2x–4x H100` (misma sesión o siguiente, ~1h)
 - **Conceptos clave:**
-  - Jerarquía de ancho de banda: PCIe Gen4/5 ($\approx 32\text{--}64\text{ GB/s}$ por dirección) vs. NVLink 4/5 ($\approx 450\text{--}900\text{ GB/s}$ bidireccional) vs. InfiniBand NDR / RoCEv2 ($400\text{ Gbps} = 50\text{ GB/s}$ por NIC).
+  - Jerarquía de ancho de banda: PCIe Gen4/5 ($\approx 32\text{--}64\text{ GB/s}$ por dirección) vs. NVLink 4 en H100 ($900\text{ GB/s}$ bidireccional agregado, $\approx 450\text{ GB/s}$ por sentido) y NVLink 5 en Blackwell ($1.8\text{ TB/s}$ agregado) vs. InfiniBand NDR / RoCEv2 ($400\text{ Gbps} = 50\text{ GB/s}$ por NIC).
   - Topología física (`nvidia-smi topo -m`), GPUDirect RDMA y P2P.
   - Métrica clave de `nccl-tests`: **algbw** (*algorithm bandwidth*) vs. **busbw** (*bus bandwidth*), definida para `AllReduce` de $N$ GPUs como:
     $$\text{busbw} = \text{algbw} \times \frac{2(N - 1)}{N}$$
@@ -479,7 +479,7 @@ No construyas los proyectos al final: cada unidad alimenta directamente un repos
 | `B1.4` | OpenAI Triton y `ncu` | `[PREP]` `[CLD]` | Cloud-1 | `[ ]` |
 | `B2.1` | Aritmética KV-Cache y Prefill/Decode | `[MOB]` `[LOC]` | No | `[x]` |
 | `B2.2` | vLLM vs. SGLang y FlashInfer | `[PREP]` `[CLD]` | Cloud-2 | `[~]` (`[PREP]` hecho; `[CLD]` pendiente) |
-| `B2.3` | TensorRT-LLM y NVIDIA Dynamo (`aisim`) | `[MOB]` `[LOC]` | Opcional | `[ ]` |
+| `B2.3` | TensorRT-LLM y NVIDIA Dynamo (`aiconfigurator`) | `[MOB]` `[LOC]` | Opcional | `[ ]` |
 | `B2.4` | Cargas Agénticas (Prefix Cache + JSON) | `[PREP]` `[CLD]` | Cloud-2 | `[ ]` |
 | `B3.1` | Teoría Cuantización (FP8/INT4/NVFP4) | `[MOB]` | No | `[ ]` |
 | `B3.2` | FP8 vs. AWQ + KV-Cache FP8 | `[PREP]` `[CLD]` | Cloud-3 | `[ ]` |

@@ -35,7 +35,7 @@
       bg: bg-purple,
       col: purple,
       body: [
-        Puertas automáticas con `mlflow.evaluate()`, jueces LLM, salud vectorial OpenSearch, trazas OTel GenAI, guardrails PII y atribución de coste por tenant.
+        Puertas automáticas con `mlflow.genai.evaluate()`, jueces LLM, salud vectorial OpenSearch, trazas OTel GenAI, guardrails PII y atribución de coste por tenant.
       ],
     ),
     (

@@ -102,7 +102,7 @@ A continuación se resume la matriz completa de las *32 unidades* cubiertas por 
     ([Curso 1], [B4 (`CLD`)], [`B4.1` LoRA/QLoRA, `B4.2` Megatron/FSDP, `B4.3` MoE, `B4.4` DeepSeek/RL], [Diseño 3D Parallelism + análisis `All-to-All`]),
     ([Curso 1], [B5 (`LOC`/`CLD`)], [`B5.1` K8s/MIG, `B5.2` NCCL/NVLink, `B5.3` RoCEv2, `B5.4` Burn-in/DCGM], [Runbook `dcgmi` + calculadora BW y stragglers]),
     ([Curso 2], [B1 (`MOB`/`LOC`/`LAB`)], [`B1.1` Databricks vs Seldon, `B1.2` MLflow 3, `B1.3` Unity Catalog], [ADR-001 + pipeline `@dev->@champion` + audit pack]),
-    ([Curso 2], [B2 (`MOB`/`LOC`)], [`B2.1` Agentic Evals, `B2.2` RAG/OpenSearch, `B2.3` OTel & FinOps], [`mlflow.evaluate()` gate + panel OTel/Prom]),
+    ([Curso 2], [B2 (`MOB`/`LOC`)], [`B2.1` Agentic Evals, `B2.2` RAG/OpenSearch, `B2.3` OTel & FinOps], [`mlflow.genai.evaluate()` gate + panel OTel/Prom]),
     ([Curso 2], [B3 (`MOB`/`LOC`)], [`B3.1` Seldon/Knative, `B3.2` Istio/Argo, `B3.3` Crossplane], [`AnalysisTemplate` canary + `XAgenticEnvironment`]),
     ([Curso 2], [B4 (`MOB`/`LOC`)], [`B4.1` SLOs/Error Budget, `B4.2` Post-mortem, `B4.3` Multi-Region], [Post-mortem blameless + ADR enrutamiento EU]),
   ),

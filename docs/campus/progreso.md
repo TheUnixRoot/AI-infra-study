@@ -51,6 +51,6 @@ Las métricas de hardware reales registradas actualmente en el repositorio está
 
 - **B1.1 (GTX 1050):** `transpose` zero-copy (`0.0036 ms`), `.contiguous()` `33.44 GB/s` vs `clone()` `91.77 GB/s` (`2.74x` en `2048x2048`).
 - **B1.2 (GTX 1050):** `gemm_smem_tiled` (`32x32`) `281.4 GFLOP/s` (`11.7x` vs `naive`; variante `16x16` añadida para mitigar ocupación Pascal); `warp_online_softmax` `1.31x` vs `3-pass`.
-- **B1.3 (GTX 1050 + `nsys` real):** `pin_memory` `2.10x` en H2D; paso total `1.01x` dominado por `~600` kernels eager (~218 ms GPU).
+- **B1.3 (GTX 1050 + `nsys` real):** `pin_memory` `2.08x` en H2D; paso total `1.01x` dominado por `~600` kernels eager (~218 ms GPU).
 - **B2.1 (`kv_calc.py`):** cálculo GQA/MLA con capacidades reales (`Llama-3-8B` FP16: `26` streams L40S / `55` H100; `Qwen2.5-72B` FP8/FP16 requiere TP o KV-FP8).
 - **B2.2 (`[PREP]`):** comparador `vLLM` vs `SGLang` + cliente de métricas Prometheus listo para `Cloud-2`.

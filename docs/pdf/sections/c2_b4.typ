@@ -80,7 +80,7 @@
 
 #concepto-clave[
   1. *Colocación Geográfica y Presupuesto de Latencia:* En un agente RAG de 3 pasos con 2 llamadas vectoriales y 2 llamadas LLM, cruzar el Atlántico (UE $arrow.r$ US-East, ~90 ms RTT + TLS) cuatro veces añade $> 400"–"600 "ms"$ de pura latencia física antes de generar el primer token. Regla de oro: *colocar orquestador, base vectorial y endpoint LLM en la misma región*.
-  2. *Soberanía UE (RGPD / Sector Regulado):* Garantizar mediante políticas de enrutamiento y endpoints regionales (p. ej. `eu-central-1` Frankfurt + `eu-west-1` Dublín / Azure Sweden Central + West Europe) que ningún prompt con PII ni trazas OTel cruce fronteras fuera del Espacio Económico Europeo incluso durante un *failover*.
+  2. *Soberanía UE (RGPD / Sector Regulado):* Garantizar mediante políticas de enrutamiento y endpoints regionales (p. ej. `eu-central-1` Frankfurt + `eu-west-1` Dublín / Azure Sweden Central + West Europe) que ningún prompt con PII ni trazas OTel cruce fronteras fuera del Espacio Económico Europeo incluso durante un *failover*. _Nota: es una política de diseño prudente, no una prohibición absoluta del RGPD (las transferencias a EE. UU. son posibles con garantías como el EU-US Data Privacy Framework); valídala con legal._
   3. *Activo-Activo vs Activo-Pasivo y Caché Semántico:* En *activo-activo*, el *caching* semántico local por región reduce llamadas repetidas al LLM y el coste de replicación cross-region se limita a deltas asíncronos del índice vectorial.
 ]
 

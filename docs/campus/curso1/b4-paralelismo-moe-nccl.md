@@ -55,7 +55,7 @@ El factor $2(N-1)/N$ recoge las dos pasadas (`ReduceScatter` + `AllGather`). En 
 
 ??? success "Ver solución B4.1-A"
     - Tensor de activación: $M = 16 \times 5120 \times 2\ \text{B} = 160\ \text{KiB}$.
-    - Con `80` AllReduce/token y factor $2(7)/8 = 1.75$: tráfico físico total = $80 \times 1.75 \times 160\ \text{KiB} = \mathbf{22.4\ \text{MB}}$ en 80 barreras síncronas.
+    - Con `80` AllReduce/token y factor $2(7)/8 = 1.75$: tráfico físico total = $80 \times 1.75 \times 160\ \text{KiB} = \mathbf{21.9\ \text{MiB}}\ (22\,400\ \text{KiB})$ en 80 barreras síncronas.
     - Sobre PCIe (`~24 GB/s` + micro-latencias de `15 us/barrera`): las latencias de sincronización suman ~`1.2–2 ms` solo de red en un paso que debería durar pocos milisegundos. Sobre NVLink/NVSwitch (`450 GB/s`, < `2 us`), el overhead es despreciable.
 
 **Ejercicio B4.4-A (`busbw` en `8x H100`):** `all_reduce_perf -b 512M` reporta `algbw = 210.5 GB/s`. Calcula `busbw` y diagnostica si indica NVLink activo o caída silenciosa a PCIe/SHM.

@@ -22,7 +22,7 @@
   #arrow-r(104pt, 44pt, 118pt, col: slate)
   #diag-node(118pt, 20pt, 108pt, 48pt, "MLflow LoggedModel", sub: "Firma (Signature) + Deps\nAlias @dev -> @staging\nProvenance inmutable", fill: bg-navy, col: navy)
   #arrow-r(226pt, 44pt, 240pt, col: navy)
-  #diag-node(240pt, 20pt, 108pt, 48pt, "Gates Técnicos + CAB", sub: "mlflow.evaluate() >= SLO\nRBAC/ABAC + Seguridad\nAprobación trazable", fill: bg-amber, col: amber)
+  #diag-node(240pt, 20pt, 108pt, 48pt, "Gates Técnicos + CAB", sub: "mlflow.genai.evaluate() >= SLO\nRBAC/ABAC + Seguridad\nAprobación trazable", fill: bg-amber, col: amber)
   #arrow-r(348pt, 44pt, 362pt, col: amber)
   #diag-node(362pt, 20pt, 106pt, 48pt, "@champion en Prod", sub: "audit-evidence.json\nsha256 + system.access\nRollback inmediato", fill: bg-teal, col: teal)
 
@@ -128,8 +128,8 @@
 ]
 
 #solucion-box[
-  - *Sol. C2-B1-A:* (1) *Documentos:* tabla fuente en `catalog.schema.docs` con Delta *Time Travel* (versión/timestamp exacto) + linaje automático al Vector Search Index; (2) *Prompt/código:* `run_id` / `LoggedModel` asociado a la versión con alias activo en ese instante en `system.access.audit` (`git_commit_sha` + `MLmodel` artifacts); (3) *Aprobación:* tag/registro inmutable de CI (`approved_by`, *PR merge SHA* y `audit-evidence.json` archivado en almacenamiento WORM/versionado).
-  - *Sol. C2-B1-B:* Mutar una versión ya desplegada invalida el `artifact_sha256` y hace imposible reproducir fallos históricos ni hacer *rollback* determinista. El pipeline debe prohibir permisos `MODIFY` a usuarios humanos sobre versiones en registro prod: solo la *Service Principal* del CI puede registrar `v5` nueva, pasar los gates y reasignar el alias `@champion`.
+  - *Sol. C2-B1-A:* (1) *Documentos:* tabla fuente en `catalog.schema.docs` con Delta *Time Travel* (versión/timestamp exacto) + linaje automático al Vector Search Index; (2) *Prompt/código:* `run_id` / `LoggedModel` asociado a la versión con alias activo en ese instante en `system.access.audit` (`git_commit_sha` + `MLmodel` artifacts); (3) *Aprobación:* los tags de versión y alias de MLflow son mutables, por lo que la prueba es el *PR merge SHA* (inmutable en Git) + `audit-evidence.json` con SHA-256 archivado en almacenamiento WORM/versionado; `approved_by` queda como índice de consulta.
+  - *Sol. C2-B1-B:* Mutar una versión ya desplegada invalida el `artifact_sha256` y hace imposible reproducir fallos históricos ni hacer *rollback* determinista. Los privilegios de Unity Catalog sobre el modelo de prod (`CREATE MODEL VERSION`, `APPLY TAG`, propiedad/`MANAGE`) deben quedar solo en la *Service Principal* del CI, que registra `v5`, pasa los gates y reasigna `@champion`; los humanos conservan `EXECUTE`. Verifica en tu workspace qué privilegio controla cambiar alias y tags.
 ]
 
 #fuentes-box[

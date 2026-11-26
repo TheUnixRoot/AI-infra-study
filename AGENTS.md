@@ -5,8 +5,8 @@ Guía para agentes de código (Claude Code, Gemini CLI, Codex, Copilot…) y par
 
 ## 1. Qué es este repositorio
 
-Learning path de **AI Infrastructure** (GPU, inferencia y benchmarking de clústeres) con prácticas reproducibles.
-El temario está en [`docs/temario/00-master-playbook.md`](docs/temario/00-master-playbook.md) y el [`README.md`](README.md) es su índice,
+Learning path con **dos itinerarios** sobre un tronco común: **Curso 1 · AI Infrastructure** (GPU, inferencia y benchmarking de clústeres) y **Curso 2 · Enterprise Agentic MLOps** (Databricks, MLflow, Unity Catalog, evals, Kubernetes/GitOps y SRE), con prácticas reproducibles.
+El temario del Curso 1 está en [`docs/temario/00-master-playbook.md`](docs/temario/00-master-playbook.md), el del Curso 2 en [`docs/temario/01-agentic-mlops-playbook.md`](docs/temario/01-agentic-mlops-playbook.md) y el [`README.md`](README.md) es su índice,
 con enlaces a cada práctica. Los resultados medidos están en [`INFORME_RESULTADOS.md`](INFORME_RESULTADOS.md).
 Se publica como sitio de GitHub Pages con **MkDocs Material** (ver `mkdocs.yml` y la sección 7).
 
@@ -22,7 +22,7 @@ Se publica como sitio de GitHub Pages con **MkDocs Material** (ver `mkdocs.yml` 
 Reglas que se derivan de esto:
 
 - **Todo lo local debe caber en 2 GB de VRAM.** Tensores < 256 MB (por defecto 2048×2048 FP32 = 16 MiB). No lances nada que haga OOM.
-- La GTX 1050 **no** soporta Triton, `ncu` moderno, FlashAttention/FlashInfer/TensorRT-LLM, FP8 ni multi-GPU (exigen `sm_70`–`sm_90`).
+- La GTX 1050 **no** soporta Triton, `ncu` moderno, FlashAttention/FlashInfer/TensorRT-LLM, FP8 ni multi-GPU (exigen `sm_70`+ según la herramienta; Triton oficial y FlashAttention, `sm_80`+; FP8, `sm_89`+).
   Esas unidades son `[PREP]` (se prepara en local, 0 €) + `[CLD]` (ráfaga en cloud). **No alquiles una GPU sin haber completado su `[PREP]`.**
 - En cloud, lo primero en la VM: `sudo shutdown -h +90` (auto-kill). Nunca dejes una GPU encendida.
 - Para compilar para cloud, el runner de B1.2 y el `Dockerfile` aceptan `CUDA_ARCH` (`sm_89` L4/L40S, `sm_90` H100, `sm_61` por defecto).
@@ -131,6 +131,7 @@ Si trabajas desde un entorno sin GPU NVIDIA (p. ej. Termux en Android para revis
    dejes contenedores corriendo. No ejecutes `docker system prune` ni borres imágenes que no sean tuyas.
 6. **Una venv por entorno en la raíz** (`.venv`, `.venv-linux`), fuera del control de versiones.
 7. **Commits:** mensajes convencionales (`fix(b1.3): …`, `docs: …`), un commit por tema. No hagas push sin que se pida.
+8. **Fuentes y veracidad del temario (ambos cursos):** toda afirmación técnica con cifras, nombres de API/atributos, privilegios o licencias debe poder rastrearse a documentación oficial enlazada o a una medición en `artifacts/`. Los datos hipotéticos de ejercicios se marcan como *ilustrativos*. Antes de fijar un nombre de API, atributo o versión (MLflow, OpenTelemetry GenAI, Crossplane, Seldon…) comprueba la versión vigente: cambian rápido. Un contenido generado por IA no cuenta como fuente.
 
 ## 6. Cómo añadir una práctica nueva
 
@@ -153,3 +154,11 @@ python tools/build_site.py --strict     # prueba local, resultado en site/
 
 Despliegue: workflow `.github/workflows/pages.yml` en cada push a `main` (único workflow permitido; sin coste en repos públicos).
 Activar una vez en *Settings → Pages → Build and deployment → Source: GitHub Actions*. Para que una página salga en el menú, añádela a `nav` en `mkdocs.yml`.
+
+## 8. Curso 2 · Agentic MLOps: entorno y límites
+
+- **Entorno:** CPU local (Docker, Kind/Minikube, MLflow, OpenSearch, Prometheus/Grafana) y, para `[LAB]`, Databricks Free Edition / Trial. No usa la GPU.
+- **Databricks Free Edition** tiene límites (sin endpoints GPU ni *provisioned throughput*, pocos endpoints de serving, un único endpoint de Vector Search): consulta su página de limitaciones antes de planificar un `[LAB]`.
+- **Recursos locales:** Knative + Istio + Seldon + Argo + Crossplane a la vez consumen mucha RAM; en Kind elige una sola ruta de despliegue progresivo por práctica.
+- **Seldon Core** (v1/v2) se publica bajo BSL 1.1 desde enero de 2024: no lo uses en producción sin licencia comercial.
+- Las prácticas del Curso 2 aún no tienen código ni `artifacts/`; los bloques de código del temario son borradores hasta que se ejecuten con `verify.sh`. Aplican las mismas reglas de la sección 5 (sin resultados simulados, sin secretos, sin gasto implícito).

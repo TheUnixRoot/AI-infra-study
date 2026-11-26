@@ -99,12 +99,12 @@
 
 #unit-header(
   "B2.3",
-  "TensorRT-LLM y NVIDIA Dynamo (Router, NIXL, AIPerf, AISim)",
+  "TensorRT-LLM y NVIDIA Dynamo (Router, NIXL, AIPerf, AIConfigurator)",
   "[MOB] 3s + [LOC] 1s + [CLD] opcional",
   "B2.2",
   "B4.3, B5.1",
-  "CPU local (aisim/aiconfigurator) + opcional 1x H100",
-  "Modelar configuraciones óptimas en aisim y conocer piezas de Dynamo vs vLLM/SGLang.",
+  "CPU local (aiconfigurator) + opcional 1x H100",
+  "Modelar configuraciones óptimas en aiconfigurator y conocer piezas de Dynamo vs vLLM/SGLang.",
 )
 
 #concepto-clave[
@@ -112,10 +112,10 @@
   2. *Ecosistema NVIDIA Dynamo (`ai-dynamo`, Rust + Python):*
      - *Smart Router (KV-Cache Aware):* Enruta peticiones hacia el worker que ya retiene los bloques del prefijo en su VRAM/LMCache.
      - *Disaggregated Serving + NIXL:* Separa nodos de *Prefill* y *Decode* transfiriendo el KV-Cache por RDMA/NVLink mediante la librería NIXL (*NVIDIA Inference Xfer Library*).
-     - *AIPerf & AISim / AIConfigurator:* Permiten simular el espacio de búsqueda $(T P, D P, B, "SLA")$ en CPU local (`0 EUR`) antes de alquilar H100s.
+     - *AIPerf & AIConfigurator:* Permiten simular el espacio de búsqueda $(T P, D P, B, "SLA")$ en CPU local (`0 EUR`) antes de alquilar H100s.
 ]
 
-#practica-box(title: "Práctica B2.3 ([LOC] 0 EUR) · Modelado Offline con aiconfigurator / aisim")[
+#practica-box(title: "Práctica B2.3 ([LOC] 0 EUR) · Modelado Offline con aiconfigurator")[
   - Ejecutar el modelador offline sobre `Qwen2.5-7B` y `Llama-3-70B` fijando SLOs `TTFT <= 350 ms` y `TPOT <= 25 ms`, exportando la configuración óptima estimada de TP y *batch size* para contrastar con las mediciones reales de B2.2 en Cloud-2.
 ]
 
@@ -133,7 +133,7 @@
 
 #concepto-clave[
   1. *Perfil de Tráfico Agéntico:* A diferencia del chat genérico, los agentes envían *system prompts masivos repetidos* (definiciones de 10–30 herramientas + ejemplos *few-shot* = 3k–6k tokens idénticos), producen salidas cortas en *streaming* SSE y exigen *Structured Outputs* (JSON Schema válido sin errores de sintaxis).
-  2. *Prefix Caching (APC / RadixAttention):* Evita recalcular el *prefill* de los primeros $S_"pref"$ tokens compartidos; convierte un coste $O(S_"pref"^2)$ por petición en una lectura directa de KV-Cache, reduciendo el TTFT hasta *3x–8x* cuando 32–64 agentes comparten contexto.
+  2. *Prefix Caching (APC / RadixAttention):* Evita recalcular el *prefill* de los primeros $S_"pref"$ tokens compartidos; convierte un coste $O(S_"pref"^2)$ por petición en una lectura directa de KV-Cache, reduciendo el TTFT (la magnitud depende de la carga y se mide en B2.4) cuando 32–64 agentes comparten contexto.
   3. *Coste de Constrained Decoding (XGrammar / Outlines / llguidance):* En cada token de salida, una máquina de estados finitos (FSM) o gramática libre de contexto precomputa una máscara binaria sobre el vocabulario ($|V| approx 151936$ en Qwen2.5) para poner a $-infinity$ los logits inválidos. Si el enmascaramiento CPU no está compilado/cacheado (*jump-forward* / *compressed FSM*), puede introducir burbujas en el loop de decode a alta concurrencia.
 ]
 
@@ -156,5 +156,5 @@
   2. Google DeepMind — *How To Scale Your Model, Part 7 (Inference)*: `https://jax-ml.github.io/scaling-book/inference/`
   3. vLLM Architecture & APC/Chunked Prefill Blog: `https://blog.vllm.ai/` · `https://docs.vllm.ai/`
   4. SGLang Docs (*RadixAttention & XGrammar*) & FlashInfer Docs: `https://docs.sglang.ai/` · `https://docs.flashinfer.ai/`
-  5. NVIDIA Dynamo, AIPerf, AISim & TensorRT-LLM: `https://github.com/ai-dynamo/dynamo` · `https://nvidia.github.io/TensorRT-LLM/`
+  5. NVIDIA Dynamo, AIPerf, AIConfigurator & TensorRT-LLM: `https://github.com/ai-dynamo/dynamo` · `https://nvidia.github.io/TensorRT-LLM/`
 ]

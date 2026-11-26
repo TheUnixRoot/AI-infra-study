@@ -4,9 +4,11 @@
 
 **Objetivo del Bloque:** Multiplicar throughput y reducir `$/1M tokens` mediante FP8/AWQ/NVFP4 y decodificación especulativa, demostrando con evaluaciones objetivas que no se degrada el *tool-calling*.
 
+> **Datos ilustrativos (no medidos).** Las cifras del diagrama y del ejercicio B3.4-A son hipotéticas y sirven solo para practicar el cálculo de coste y Pareto. Los resultados reales saldrán de `[CLD]` Cloud-3 y se guardarán en `artifacts/`.
+
 ```mermaid
 flowchart LR
-    FP16["Baseline BF16\n420 tok/s · Tool Acc 96.5%\nCoste: USD 1.98 / 1M"] --> PARETO{"Filtro Calidad >= 95%"}
+    FP16["Ejemplo ilustrativo: BF16\n420 tok/s · Tool Acc 96.5%\nCoste: USD 1.98 / 1M"] --> PARETO{"Filtro Calidad >= 95%"}
     FP8["FP8 W8A8 + KV-FP8\n890 tok/s · Tool Acc 96.0%\nCoste: USD 0.94 / 1M"] --> PARETO
     AWQ["AWQ INT4\n940 tok/s · Tool Acc 91.2%\nCoste: USD 0.89 / 1M"] --> DROP["Descartado\nIncumple SLO calidad"]
     PARETO --> WIN["Frontera Factible Óptima:\nFP8 + KV-FP8 (2.1x más barato)"]
@@ -17,7 +19,7 @@ flowchart LR
 ## B3.1 · Teoría de Cuantización (`FP8`, `INT4 AWQ/GPTQ`, `NVFP4`)
 
 - **Escala afín y simétrica:** $x_q = \text{clamp}(\text{round}(x/s), -2^{b-1}, 2^{b-1}-1)$.
-- **`FP8` (`E4M3` / `E5M2` en `sm_89+`):** acelera *both compute & memory* en Tensor Cores Ada/Hopper con pérdida mínima (`< 0.5 pp`) mediante factores de escala *per-tensor* o *block-wise 128×128* (DeepSeek-V3).
+- **`FP8` (`E4M3` / `E5M2` en `sm_89+`):** acelera *both compute & memory* en Tensor Cores Ada/Hopper con pérdida normalmente pequeña (hay que medirla con `B3.4`) mediante factores de escala *per-tensor* o *block-wise 128×128* (DeepSeek-V3).
 - **`AWQ / GPTQ` (`W4A16`):** reduce pesos a 4 bits manteniendo activaciones en FP16; ideal en **Decode de bajo batch** (*memory-bound*), pero al aumentar batch puede volverse *compute-bound* por el coste de descuantizar `INT4 -> FP16` antes del GEMM.
 - **`NVFP4` (`Blackwell B200`):** micro-escalado en bloques de `16` valores con factor FP8 (`E4M3`) soportado nativamente en silicio Tensor Core.
 
@@ -64,7 +66,7 @@ Combina `lm-evaluation-harness` / EvalPlus (`HumanEval+`, `gsm8k`) con validaci�
     - Con $\alpha=0.70, k=4$: $\frac{1 - 0.70^5}{1 - 0.70} = \frac{1 - 0.168}{0.30} \approx \mathbf{2.77\ \text{tokens/paso}}$.
     - Speedup neto: $2.77 / 1.45 \approx \mathbf{1.91x}$ siempre que el batch sea suficientemente bajo para no saturar cómputo.
 
-**Ejercicio B3.4-A (FinOps & Pareto):** En una H100 (`$3.00/h`): BF16 logra `420 tok/s` (`96.5%` tool acc), FP8+KV-FP8 `890 tok/s` (`96.0%`), AWQ `940 tok/s` (`91.2%`). Con SLO `Tool Accuracy >= 95 %`, calcula costes y elige la configuración óptima.
+**Ejercicio B3.4-A (FinOps & Pareto, datos hipotéticos):** En una H100 (`$3.00/h`): BF16 logra `420 tok/s` (`96.5%` tool acc), FP8+KV-FP8 `890 tok/s` (`96.0%`), AWQ `940 tok/s` (`91.2%`). Con SLO `Tool Accuracy >= 95 %`, calcula costes y elige la configuración óptima.
 
 ??? success "Ver solución B3.4-A"
     - `BF16`: `$1.98 / 1M` · `FP8+KV-FP8`: `$0.94 / 1M` · `AWQ`: `$0.89 / 1M`.

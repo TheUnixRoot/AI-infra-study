@@ -4,7 +4,7 @@
 >
 > **Punto de partida (Baseline):** Perfil Senior DevOps / SRE (CI/CD empresarial, promoción multi-entorno, gestión de secretos/identidad, IaC en AWS/Azure, Kubernetes, SLOs, respuesta a incidentes y Prometheus/Grafana). Este plan **no repite fundamentos básicos de DevOps**, sino que cierra al 100 % las brechas específicas del puesto: ecosistema **Databricks (MLflow, Mosaic AI, Unity Catalog)**, **gobernanza y auditoría por diseño**, **evaluación y observabilidad de agentes/RAG**, y **serving cloud-native (Seldon, Knative, Istio, ArgoCD, Crossplane, OpenSearch)**.
 >
-> **Restricción operativa:** Todo el temario se ejecuta en **micro-sprints de 20 minutos** combinando lectura técnica desde el móvil (`[MOB]`) y ejecución práctica en local (`[LOC]` con Docker/Kind/MLflow/Python) delegada a un **Agente de Código**, más laboratorios gratuitos en **Databricks Free Edition / Trial** (`[LAB]`).
+> **Restricción operativa:** Todo el temario se ejecuta en **micro-sprints de 20 minutos** combinando lectura técnica desde el móvil (`[MOB]`) y ejecución práctica en local (`[LOC]` con Docker/Kind/MLflow/Python) delegada a un **Agente de Código**, más laboratorios gratuitos en **Databricks Free Edition / Trial** (`[LAB]`). *Nota:* Free Edition tiene límites (sin endpoints GPU ni *provisioned throughput*, pocos endpoints de serving y un único endpoint de Vector Search); consulta su [página de limitaciones](https://docs.databricks.com/aws/en/getting-started/free-edition-limitations) antes de planificar cada `[LAB]`, y usa el Trial si un límite te bloquea.
 
 ---
 
@@ -83,7 +83,7 @@ Requisitos:
 Cada bloque construye una pieza de un repositorio de referencia listo para mostrar en entrevista técnica:
 
 - **Capa de Gobierno y Ciclo de Vida (B1):** Pipeline CI/CD de promoción `dev -> test -> prod` con artefactos inmutables, aprobaciones obligatorias, linaje de datos/modelos y paquete de evidencias *audit-ready*.
-- **Capa de Evaluación y Observabilidad (B2):** Arnés automático con `mlflow.evaluate()` que mide *task success*, fiabilidad de *tool calling* y salud de búsqueda vectorial (RAG), más paneles de telemetría de costes y latencia.
+- **Capa de Evaluación y Observabilidad (B2):** Arnés automático con `mlflow.genai.evaluate()` que mide *task success*, fiabilidad de *tool calling* y salud de búsqueda vectorial (RAG), más paneles de telemetría de costes y latencia.
 - **Capa de Serving y GitOps (B3):** Despliegue en Kubernetes con Seldon Core / Knative + Istio (*canary rollout* y *rollback* automático), manifiestos ArgoCD, abstracción Crossplane y un ADR comparando K8s/Seldon frente a Databricks Mosaic AI Serverless.
 - **Capa de Operación SRE y Multi-Cloud (B4):** Definición formal de SLOs/SLIs para agentes, simulacro de incidente con post-mortem y estrategia de enrutamiento multi-región con control de latencia.
 
@@ -101,7 +101,7 @@ Cada bloque construye una pieza de un repositorio de referencia listo para mostr
   - Redacción de ADRs (*Architecture Decision Records*): cómo justificar criterios de migración desde Seldon en K8s hacia Databricks Mosaic AI según latencia, aislamiento, coste y cumplimiento.
 - **Recursos en texto (móvil):**
   1. Databricks Docs — *Mosaic AI Model Serving Overview y Deploy AI Agents*: `https://docs.databricks.com/en/machine-learning/model-serving/`
-  2. Documentación de patrones ADR (Michael Nygard ADR template).
+  2. Michael Nygard — *Documenting Architecture Decisions* (plantilla ADR): `https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions`
 - **Práctica:** Redactar `docs/adr/001-serving-topology-databricks-vs-seldon.md` definiendo matriz de decisión (SLOs, coste, gobernanza, portabilidad).
 - **Done:** Puedes defender en 3 minutos cuándo mantener un modelo/agente en Kubernetes/Seldon y cuándo migrarlo a Databricks Mosaic AI Serverless.
 
@@ -143,7 +143,7 @@ Cada bloque construye una pieza de un repositorio de referencia listo para mostr
   - MLflow Evaluate & LLM-as-a-Judge: Creación de *scorers* personalizados deterministas (Python) + jueces semánticos, comparación A/B entre versiones del agente y *Evaluation Gates* en CI/CD.
 - **Recursos en texto (móvil):**
   1. MLflow Docs — *Evaluating Agents & GenAI Apps (`mlflow.genai.evaluate`)*: `https://mlflow.org/docs/latest/genai/eval-monitor/`
-- **Práctica (Agente -> Local):** Construir un agente de prueba con 3 herramientas (consulta de póliza, cálculo de cobertura, creación de ticket) y una suite `mlflow.evaluate()` con 15 casos de prueba (incluyendo fallos simulados de herramienta) que bloquee el CI si *Tool Reliability* $< 95\%$ o *Task Success* $< 90\%$.
+- **Práctica (Agente -> Local):** Construir un agente de prueba con 3 herramientas (consulta de póliza, cálculo de cobertura, creación de ticket) y una suite `mlflow.genai.evaluate()` con 15 casos de prueba (incluyendo fallos simulados de herramienta) que bloquee el CI si *Tool Reliability* $< 95\%$ o *Task Success* $< 90\%$.
 - **Done:** Tienes un *gate* automatizado en MLflow que mide fiabilidad de herramientas y éxito de tareas antes de cada despliegue.
 
 ### `[B2.2]` Observabilidad de RAG y Salud de Búsqueda Vectorial (Vector Search Health)
@@ -181,6 +181,7 @@ Cada bloque construye una pieza de un repositorio de referencia listo para mostr
   - Seldon Core v2: Arquitectura orientada a datos (Kafka/gRPC/REST), `Model` y `Pipeline` CRDs (encadenamiento de preprocesado -> modelo -> postprocesado/guardrails), *multi-model serving* y explicación/monitorización integrada.
   - Knative Serving: Autoscaling basado en concurrencia/RPS (KPA/HPA), *scale-to-zero* para entornos dev/test o cargas intermitentes, gestión de *Revisions* y división de tráfico.
   - Cuándo usar Seldon Pipelines frente a orquestadores agénticos en Python (LangGraph/LlamaIndex) sobre Knative.
+  - **Licencia:** desde enero de 2024 Seldon Core v1/v2 usan BSL 1.1 (producción requiere licencia comercial); valóralo en el ADR.
 - **Recursos en texto (móvil):**
   1. Seldon Core v2 Architecture & Concepts Docs: `https://docs.seldon.io/projects/seldon-core/en/v2/`
   2. Knative Serving Docs — *Autoscaling & Traffic Management*: `https://knative.dev/docs/serving/`
@@ -191,7 +192,7 @@ Cada bloque construye una pieza de un repositorio de referencia listo para mostr
 - **Modo:** `[MOB]` (2 sprints) + `[LOC]` (2 sprints)
 - **Conceptos clave:**
   - Istio Service Mesh: `VirtualService` y `DestinationRule` para *weighted traffic splitting* (95% `@champion` / 5% `@challenger`), *traffic mirroring / shadow testing* (evaluar un nuevo agente con tráfico real sin afectar al usuario), mTLS estricto y timeouts/retries seguros para *tool calls*.
-  - ArgoCD + Argo Rollouts: GitOps declarativo multi-entorno (`dev -> test -> prod`), sincronización automática con aprobación manual en producción, *Canary Rollouts* guiados por métricas de Prometheus/MLflow (si sube latencia p99 o baja *tool reliability*, *auto-rollback* inmediato).
+  - (Elige una ruta: Knative reparte tráfico por *Revisions*; Argo Rollouts gestiona `Rollout`, no Services de Knative.) ArgoCD + Argo Rollouts: GitOps declarativo multi-entorno (`dev -> test -> prod`), sincronización automática con aprobación manual en producción, *Canary Rollouts* guiados por métricas de Prometheus/MLflow (si sube latencia p99 o baja *tool reliability*, *auto-rollback* inmediato).
 - **Recursos en texto (móvil):**
   1. Istio Docs — *Traffic Management & Mirroring*: `https://istio.io/latest/docs/tasks/traffic-management/`
   2. Argo Rollouts Docs — *Canary & Prometheus Analysis*: `https://argo-rollouts.readthedocs.io/`
@@ -201,7 +202,7 @@ Cada bloque construye una pieza de un repositorio de referencia listo para mostr
 ### `[B3.3]` Infraestructura como Código y Golden Paths con Crossplane + Cloud Networking
 - **Modo:** `[MOB]` (2 sprints) + `[LOC]` (1 sprint)
 - **Conceptos clave:**
-  - Crossplane: *Control plane* de infraestructura nativo en Kubernetes; Providers (AWS/Azure), Managed Resources, `CompositeResourceDefinitions` (XRDs) y `Compositions` para ofrecer *Golden Paths* de autoservicio (ej. un equipo pide un `AgenticWorkspace` con un YAML sencillo y Crossplane aprovisiona bucket de artefactos, base vectorial, secretos e identidad IAM).
+  - Crossplane (v2: composiciones solo mediante *funciones*, sin patch-and-transform nativo): *Control plane* de infraestructura nativo en Kubernetes; Providers (AWS/Azure), Managed Resources, `CompositeResourceDefinitions` (XRDs) y `Compositions` para ofrecer *Golden Paths* de autoservicio (ej. un equipo pide un `AgenticWorkspace` con un YAML sencillo y Crossplane aprovisiona bucket de artefactos, base vectorial, secretos e identidad IAM).
   - Cloud Networking & Security (Azure / AWS): Private Endpoints / PrivateLink hacia Databricks y servicios de modelos, Zero-Trust networking, Workload Identity / IRSA para eliminar credenciales estáticas en pipelines y pods.
 - **Recursos en texto (móvil):**
   1. Crossplane Docs — *Compositions & Platform Engineering*: `https://docs.crossplane.io/`

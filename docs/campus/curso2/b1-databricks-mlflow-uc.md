@@ -66,13 +66,13 @@ Namespace de 3 niveles `catalog.schema.object` cubriendo tablas Delta (*Time Tra
 
 ??? success "Ver solución C2-B1-A"
     1. **Documentos:** tabla Delta fuente `catalog.schema.docs` mediante *Delta Time Travel* (`TIMESTAMP AS OF`) + linaje automático al *Vector Search Index*.
-    2. **Código y Prompt:** versión exacta ligada al alias `@champion` en ese timestamp en `system.access.audit` (`git_commit_sha`, `run_id`, artefactos del `LoggedModel`).
-    3. **Aprobación:** tag inmutable `approved_by` + merge SHA del PR + `audit-evidence.json` firmado con SHA-256.
+    2. **Código y Prompt:** versión del modelo que servía `@champion` en ese instante. Reconstrúyela con el historial de cambios de alias en `system.access.audit` (verifica en tu workspace qué eventos registra) y con `git_commit_sha`, `run_id` y los artefactos del `LoggedModel`.
+    3. **Aprobación:** los tags de versión y los alias de MLflow **son mutables**, así que no sirven como única prueba. Usa el merge SHA del PR (inmutable en Git) + `audit-evidence.json` con SHA-256 archivado en almacenamiento versionado/WORM, y deja el tag `approved_by` solo como índice de consulta.
 
 **Ejercicio C2-B1-B (Inmutabilidad):** Un desarrollador edita directamente tags/artefactos de la versión `v4` (`@champion`) para corregir un typo en el *system prompt*. ¿Por qué rompe auditoría y cómo lo bloqueas?
 
 ??? success "Ver solución C2-B1-B"
-    Mutar `v4` in-place invalida el `artifact_sha256`, rompe reproducibilidad post-mortem y anula *rollbacks*. Solución: revocar permiso `MODIFY` a usuarios humanos sobre el registro de producción; únicamente el *Service Principal* del pipeline CI puede registrar `v5`, ejecutar el gate de evaluación y mover el alias `@champion`.
+    Mutar `v4` in-place invalida el `artifact_sha256`, rompe reproducibilidad post-mortem y anula *rollbacks*. Solución: limitar los privilegios de Unity Catalog sobre el modelo de producción (`CREATE MODEL VERSION`, `APPLY TAG`, propiedad/`MANAGE`) al *Service Principal* del pipeline CI, de modo que solo él pueda registrar `v5`, ejecutar el gate y mover el alias `@champion`; los humanos conservan `EXECUTE` (lectura). Comprueba en tu workspace qué privilegio exacto controla cambiar alias y tags, y detecta ediciones fuera de pipeline comparando `artifact_sha256` en el gate.
 
 ### Fuentes Primarias
 - Databricks Docs — *Mosaic AI Model Serving & Deploy AI Agents*: `https://docs.databricks.com/en/machine-learning/model-serving/`

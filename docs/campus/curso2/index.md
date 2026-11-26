@@ -23,7 +23,7 @@ flowchart LR
 | Chat | Bloque | Entregables principales (`verify.sh < 60s`) | Enlace al Módulo |
 | :--- | :--- | :--- | :--- |
 | `CHAT-B1` | **B1 · Databricks, MLflow 3 y Unity Catalog** | `docs/adr/001-serving-topology.md`, pipeline `@dev->@champion`, `audit-evidence.json` | [Abrir Bloque 1 →](b1-databricks-mlflow-uc.md) |
-| `CHAT-B2` | **B2 · Evals Agénticas, RAG y OTel/FinOps** | Arnés `mlflow.evaluate()` (`15` casos), colector OpenSearch RAG, dashboard OTel/FinOps | [Abrir Bloque 2 →](b2-evals-rag-observabilidad.md) |
+| `CHAT-B2` | **B2 · Evals Agénticas, RAG y OTel/FinOps** | Arnés `mlflow.genai.evaluate()` (`15` casos), colector OpenSearch RAG, dashboard OTel/FinOps | [Abrir Bloque 2 →](b2-evals-rag-observabilidad.md) |
 | `CHAT-B3` | **B3 · Seldon/Knative, Istio, ArgoCD y Crossplane** | Manifiestos Knative KPA + Istio Canary + `AnalysisTemplate` + XRD `XAgenticEnvironment` | [Abrir Bloque 3 →](b3-serving-gitops-crossplane.md) |
 | `CHAT-B4` | **B4 · SLOs Agénticos, GameDay y Multi-Región** | Runbooks + simulacro *blameless* + ADR enrutamiento soberano UE | [Abrir Bloque 4 →](b4-sre-slos-multiregion.md) |
 

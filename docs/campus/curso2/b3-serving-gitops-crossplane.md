@@ -7,7 +7,7 @@
 ```mermaid
 flowchart TB
     USR["Tráfico Entrante"] --> IST["Istio Gateway + VirtualService\nmTLS estricto · 95% @champion / 5% @challenger"]
-    IST --> CH["Stable (@champion)\nKnative KPA concurrency"]
+    IST --> CH["Stable (@champion)\nDeployment gestionado por Argo Rollouts"]
     IST --> CA["Canary (@challenger)\nNueva versión vN+1"]
     CH & CA --> ARGO["Argo Rollouts AnalysisTemplate (Prometheus cada 30–60s)\nSi p99 >= 1.5s OR Tool Reliability < 0.95 -> Auto-Rollback"]
 ```
@@ -15,6 +15,14 @@ flowchart TB
 ---
 
 ## B3.1 · Seldon Core v2 vs. Knative Serving (KPA por Concurrencia)
+
+!!! warning "Dos rutas de despliegue progresivo; no las mezcles"
+    - **Ruta A (Knative):** el `Service` de Knative ya reparte tráfico entre *Revisions* (`traffic:` con porcentajes). Aquí no necesitas Argo Rollouts.
+    - **Ruta B (Istio + Argo Rollouts):** Argo Rollouts gestiona objetos `Rollout` (sustituto de `Deployment`), **no** `Service` de Knative; el reparto 95/5 lo hace Istio.
+    El diagrama de arriba y el `AnalysisTemplate` corresponden a la Ruta B. Para la práctica en Kind elige una sola ruta (Knative + Istio + Seldon + Argo + Crossplane a la vez consume mucha RAM).
+
+!!! warning "Licencia de Seldon Core"
+    Desde el 22/01/2024 las nuevas versiones de Seldon Core (v1 y v2) se publican bajo **BSL 1.1**: uso no productivo gratuito, producción con licencia comercial (convierte a Apache 2.0 a los 4 años). Considéralo en el ADR-001; alternativas con licencia abierta: KServe, Knative + servidor propio. Ver [FAQ de licencias de Seldon](https://seldon.io/resources/licensing-faqs).
 
 - **Seldon Core v2:** pipelines declarativos multi-etapa desacoplados sobre Kafka/gRPC (`Model` + `Pipeline` CRD): *Guardrail PII $\rightarrow$ Retrieval $\rightarrow$ LLM $\rightarrow$ Verifier*, más soporte *multi-model serving*.
 - **Knative Serving (`KPA`):** escala por **concurrencia real de peticiones en vuelo** (`containerConcurrency` / `autoscaling.knative.dev/target`) en lugar de CPU `%` (un pod de agente esperando respuesta del LLM o de una tool tiene CPU al `5 %` aunque tenga todos sus hilos saturados), y soporta *scale-to-zero* en `dev`/`staging`.
@@ -70,6 +78,9 @@ flowchart TB
 ---
 
 ## B3.3 · Crossplane Golden Paths, PrivateLink y Zero-Trust Identity
+
+!!! warning "Crossplane v2"
+    En v2 desaparece el *patch-and-transform* nativo: las `Composition` usan `mode: Pipeline` con **funciones de composición**, y los XR con espacio de nombres no usan *claims*. Muchos tutoriales v1 ya no aplican; sigue la [guía de actualización a v2](https://docs.crossplane.io/v2.0/guides/upgrade-to-crossplane-v2/).
 
 Los equipos de producto consumen un único **XRD (`XAgenticEnvironment`)** en lugar de mantener cientos de líneas Terraform duplicadas; la **Composition** aprovisiona automáticamente bucket KMS-cifrado, índice vectorial, **AWS PrivateLink / Azure Private Endpoint** (cero tráfico por Internet público) e identidad federada efímera (**IRSA** / **Workload Identity**) sin secretos estáticos.
 

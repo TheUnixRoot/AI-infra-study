@@ -9,7 +9,7 @@ flowchart LR
     T["Tensor PyTorch\nshape + stride + offset"] --> K{"¿Accesos coalescentes?"}
     K -- "Sí (clone / coalesced)" --> FAST["GTX 1050: 91.8 GB/s\n~82% pico DRAM"]
     K -- "No (transpose + contiguous)" --> SLOW["GTX 1050: 33.4 GB/s\n2.74x más lento"]
-    SLOW --> SMEM["CUDA C++ SMEM Tiling\n32x32 -> 281.4 GFLOP/s (11.7x)"]
+    SLOW --> SMEM["CUDA C++ SMEM Tiling\n32x32 -> 281.2 GFLOP/s (11.7x)"]
     SMEM --> TRITON["Cloud L4 (sm_89)\nTriton Fused + ncu Roofline"]
 ```
 
@@ -48,12 +48,12 @@ En la **GTX 1050** (`1860 GFLOP/s` FP32 y `112 GB/s`), $I^* \approx 16.6\ \text{
 - **Tiling en Shared Memory (`32x32` vs `16x16`):** en Pascal (`65,536` regs/SM, `2048` hilos/SM máx.), `32x32` (`1024` hilos/bloque) cae a 1 bloque/SM (**50 % ocupación**) si supera 32 regs/hilo, mientras `16x16` (`256` hilos/bloque) mejora flexibilidad de bloques concurrentes. En [el código CUDA de B1.2](../../../b1_2_cuda_gemm/gemm_bench.cu) se comparan ambas variantes.
 - **Warp Online Softmax:** fusiona cálculo de máximo `m` y normalizador `d` en una sola pasada más escritura mediante `__shfl_down_sync`, reduciendo tráfico DRAM respecto al enfoque *3-pass*.
 
-| Kernel GEMM (`M=N=K=1024` GTX 1050) | Rendimiento medido | Speedup vs `naive` |
+| Kernel GEMM (`M=N=K=2048` GTX 1050, `artifacts/b1_2_results.csv`) | Rendimiento medido | Speedup vs `naive` |
 | :--- | :---: | :---: |
-| `gemm_naive` | `24.0 GFLOP/s` | `1.0x` |
-| `gemm_coalesced` | `191.0 GFLOP/s` | `8.0x` |
-| `gemm_smem_tiled` (`32x32`) | `281.4 GFLOP/s` | `11.7x` |
-| `cublasSgemm` | `1627.1 GFLOP/s` | `67.8x` |
+| `gemm_naive` | `24.0 GFLOP/s` | `1.00x` |
+| `gemm_coalesced` | `115.6 GFLOP/s` | `4.81x` |
+| `gemm_smem_tiled` (`32x32`) | `281.2 GFLOP/s` | `11.69x` |
+| `cublasSgemm` | `1627.1 GFLOP/s` | `67.68x` |
 
 - **Práctica y parser:** [`b1_2_cuda_gemm/README.md`](../../../b1_2_cuda_gemm/README.md) · **Resultados completos:** [`INFORME_RESULTADOS.md`](../../../INFORME_RESULTADOS.md)
 
@@ -63,15 +63,15 @@ En la **GTX 1050** (`1860 GFLOP/s` FP32 y `112 GB/s`), $I^* \approx 16.6\ \text{
 
 En [`b1_3_profiling/`](../../../b1_3_profiling/README.md) se midieron 3 antipatrones en GTX 1050 con `nsys` real:
 
-1. **Paginación en copias H2D (`128 MB`):** activar `pin_memory=True` sube de **`1.28 GB/s` a `2.69 GB/s` (`2.10x`)** en transferencia PCIe.
-2. **Sincronización CPU-GPU (`torch.cuda.synchronize()` / `.item()`):** rompe el pipelining asíncrono; al eliminarlo, el coste de la llamada CPU baja `4x`, pero el paso completo apenas mejora (`1.01x`: `221.3 ms` $\rightarrow$ `218.2 ms`) porque domina la suma de ~600 kernels Python sin fusionar.
-3. **Solución de fondo (`B1.4`):** requiere fusión de operadores vía `torch.compile` / Triton (`sm_70+`).
+1. **Paginación en copias H2D (tensor `2048x2048` FP32 = `16 MiB`):** activar `pin_memory=True` + `non_blocking` reduce la transferencia de **`3.71 ms` a `1.78 ms` (`2.08x`)** (`INFORME_RESULTADOS.md`, §4).
+2. **Sincronización CPU-GPU (`torch.cuda.synchronize()` / `.item()`):** los ~`210 ms` de "espera" de `BAD` no son coste de sincronización, sino la CPU esperando al cómputo ya encolado. Quitar `.item()` apenas mejora el paso completo (`1.01x`: `223.1 ms` $\rightarrow$ `220.7 ms`) porque domina el cómputo de ~600 kernels sin fusionar (`218 ms`, ~`93 GB/s` por kernel).
+3. **Solución de fondo (`B1.4`):** requiere fusión de operadores vía `torch.compile` / Triton (`torch.compile` exige `sm_70`+; el soporte oficial de Triton es `sm_80`+).
 
 ---
 
 ## B1.4 · Triton y Nsight Compute (`ncu`) (`[PREP]` $\rightarrow$ `[CLD]` 1×L4)
 
-Triton programa a nivel de bloques (`tl.program_id(axis=0)`) vectorizando `tl.load`/`tl.store` sobre MLIR/LLVM para `sm_70+`. En `1x L4` (`sm_89`) cerrarás el ciclo midiendo `ncu --set roofline` (`SM Throughput %` vs `DRAM/HBM Throughput %` y *warp stalls* `stall_long_scoreboard`).
+Triton programa a nivel de bloques (`tl.program_id(axis=0)`) vectorizando `tl.load`/`tl.store` sobre MLIR/LLVM (soporte oficial `sm_80`+). En `1x L4` (`sm_89`) cerrarás el ciclo midiendo `ncu --set roofline` (`SM Throughput %` vs `DRAM/HBM Throughput %` y *warp stalls* `stall_long_scoreboard`).
 
 ---
 

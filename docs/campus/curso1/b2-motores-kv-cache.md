@@ -56,7 +56,7 @@ En [`b2_2_vllm_vs_sglang/`](../../../b2_2_vllm_vs_sglang/README.md) ya está lis
 
 ## B2.4 · Cargas Agénticas: Prefix Caching y Constrained Decoding (`XGrammar`)
 
-- **Prefix Caching (`APC` / `RadixAttention`):** evita recomputar $O(S_{\text{pref}}^2)$ en cada turno de herramienta del agente, bajando el TTFT entre `3x` y `8x` cuando existe *cache-aware sticky routing*.
+- **Prefix Caching (`APC` / `RadixAttention`):** evita recomputar $O(S_{\text{pref}}^2)$ en cada turno de herramienta del agente, reduciendo el TTFT de forma notable cuando existe *cache-aware sticky routing* (la magnitud real se mide en `B2.4`, no se asume).
 - **Constrained Decoding (`XGrammar` / `llguidance`):** precompila autómatas/gramáticas sobre el vocabulario (`|V| ~ 151,936` en Qwen2.5) en máscara binaria rápida de logits para garantizar JSON Schema `100 %` válido sin introducir pausas CPU.
 
 ---
@@ -79,5 +79,5 @@ En [`b2_2_vllm_vs_sglang/`](../../../b2_2_vllm_vs_sglang/README.md) ya está lis
 ### Fuentes Primarias
 - Kwon et al. — *PagedAttention / vLLM Docs*: `https://docs.vllm.ai/`
 - Zheng et al. — *SGLang / RadixAttention*: `https://docs.sglang.ai/`
-- FlashInfer & XGrammar: `https://docs.flashinfer.ai/` · `https://blog.mlc.ai/2024/11/22/achieving-efficient-flexible-portability-for-structured-generation-with-xgrammar`
+- FlashInfer & XGrammar: `https://docs.flashinfer.ai/` · `https://xgrammar.mlc.ai/docs/`
 - NVIDIA Dynamo Architecture: `https://docs.nvidia.com/dynamo/`
