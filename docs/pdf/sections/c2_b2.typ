@@ -61,7 +61,7 @@
   3. *Scorers Deterministas + LLM-as-a-Judge:* Toda regla verificable por código (esquema JSON, número máximo de pasos, presencia de cita, no exposición de PII) debe ir en *scorers* Python deterministas rápidos y gratuitos; LLM-as-a-Judge se reserva para fidelidad semántica y tono.
 ]
 
-#practica-box(title: "Práctica C2-B2.1 ([LOC]) · Suite mlflow.evaluate() con 15 Casos y Fallos Simulados")[
+#practica-box(title: "Práctica C2-B2.1 ([LOC]) · Suite mlflow.genai.evaluate() con 15 Casos y Fallos Simulados")[
   - Construir un agente de soporte asegurador con 3 herramientas (`get_policy`, `calc_coverage`, `create_ticket`), incluyendo 4 casos de *chaos testing* (tool devuelve timeout o 404). Registrar en MLflow scorers deterministas (`tool_reliability`, `valid_json_args`, `no_infinite_loop`) y juez de `task_success`, devolviendo `exit 1` en CI si `tool_reliability < 0.95` o `task_success < 0.90`.
 ]
 

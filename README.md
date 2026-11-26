@@ -81,7 +81,7 @@ Estados: ✅ hecha y medida · 🟡 parcial · ⬜ pendiente. Modos: `[MOB]` lec
 | Chat | Bloque y Unidades | Modo | Portal Campus |
 | :--- | :--- | :---: | :--- |
 | `CHAT-B1` | **B1 (`B1.1`–`B1.3`) · Databricks Mosaic AI, MLflow 3 y Unity Catalog** | `[MOB]` `[LOC]` `[LAB]` | [Bloque 1 →](docs/campus/curso2/b1-databricks-mlflow-uc.md) |
-| `CHAT-B2` | **B2 (`B2.1`–`B2.3`) · Agentic Evals (`mlflow.evaluate`), RAG Health y OTel/FinOps** | `[MOB]` `[LOC]` | [Bloque 2 →](docs/campus/curso2/b2-evals-rag-observabilidad.md) |
+| `CHAT-B2` | **B2 (`B2.1`–`B2.3`) · Agentic Evals (`mlflow.genai.evaluate`), RAG Health y OTel/FinOps** | `[MOB]` `[LOC]` | [Bloque 2 →](docs/campus/curso2/b2-evals-rag-observabilidad.md) |
 | `CHAT-B3` | **B3 (`B3.1`–`B3.3`) · Serving K8s (Seldon/Knative), Istio + ArgoCD y Crossplane** | `[MOB]` `[LOC]` | [Bloque 3 →](docs/campus/curso2/b3-serving-gitops-crossplane.md) |
 | `CHAT-B4` | **B4 (`B4.1`–`B4.3`) · SRE SLOs, GameDay Blameless y Multi-Región UE** | `[MOB]` `[LOC]` | [Bloque 4 →](docs/campus/curso2/b4-sre-slos-multiregion.md) |
 

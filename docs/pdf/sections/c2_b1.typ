@@ -22,7 +22,7 @@
   #arrow-r(104pt, 44pt, 118pt, col: slate)
   #diag-node(118pt, 20pt, 108pt, 48pt, "MLflow LoggedModel", sub: "Firma (Signature) + Deps\nAlias @dev -> @staging\nProvenance inmutable", fill: bg-navy, col: navy)
   #arrow-r(226pt, 44pt, 240pt, col: navy)
-  #diag-node(240pt, 20pt, 108pt, 48pt, "Gates Técnicos + CAB", sub: "mlflow.evaluate() >= SLO\nRBAC/ABAC + Seguridad\nAprobación trazable", fill: bg-amber, col: amber)
+  #diag-node(240pt, 20pt, 108pt, 48pt, "Gates Técnicos + CAB", sub: "mlflow.genai.evaluate() >= SLO\nRBAC/ABAC + Seguridad\nAprobación trazable", fill: bg-amber, col: amber)
   #arrow-r(348pt, 44pt, 362pt, col: amber)
   #diag-node(362pt, 20pt, 106pt, 48pt, "@champion en Prod", sub: "audit-evidence.json\nsha256 + system.access\nRollback inmediato", fill: bg-teal, col: teal)
 

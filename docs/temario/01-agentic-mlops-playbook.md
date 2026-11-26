@@ -83,7 +83,7 @@ Requisitos:
 Cada bloque construye una pieza de un repositorio de referencia listo para mostrar en entrevista técnica:
 
 - **Capa de Gobierno y Ciclo de Vida (B1):** Pipeline CI/CD de promoción `dev -> test -> prod` con artefactos inmutables, aprobaciones obligatorias, linaje de datos/modelos y paquete de evidencias *audit-ready*.
-- **Capa de Evaluación y Observabilidad (B2):** Arnés automático con `mlflow.evaluate()` que mide *task success*, fiabilidad de *tool calling* y salud de búsqueda vectorial (RAG), más paneles de telemetría de costes y latencia.
+- **Capa de Evaluación y Observabilidad (B2):** Arnés automático con `mlflow.genai.evaluate()` que mide *task success*, fiabilidad de *tool calling* y salud de búsqueda vectorial (RAG), más paneles de telemetría de costes y latencia.
 - **Capa de Serving y GitOps (B3):** Despliegue en Kubernetes con Seldon Core / Knative + Istio (*canary rollout* y *rollback* automático), manifiestos ArgoCD, abstracción Crossplane y un ADR comparando K8s/Seldon frente a Databricks Mosaic AI Serverless.
 - **Capa de Operación SRE y Multi-Cloud (B4):** Definición formal de SLOs/SLIs para agentes, simulacro de incidente con post-mortem y estrategia de enrutamiento multi-región con control de latencia.
 
@@ -143,7 +143,7 @@ Cada bloque construye una pieza de un repositorio de referencia listo para mostr
   - MLflow Evaluate & LLM-as-a-Judge: Creación de *scorers* personalizados deterministas (Python) + jueces semánticos, comparación A/B entre versiones del agente y *Evaluation Gates* en CI/CD.
 - **Recursos en texto (móvil):**
   1. MLflow Docs — *Evaluating Agents & GenAI Apps (`mlflow.genai.evaluate`)*: `https://mlflow.org/docs/latest/genai/eval-monitor/`
-- **Práctica (Agente -> Local):** Construir un agente de prueba con 3 herramientas (consulta de póliza, cálculo de cobertura, creación de ticket) y una suite `mlflow.evaluate()` con 15 casos de prueba (incluyendo fallos simulados de herramienta) que bloquee el CI si *Tool Reliability* $< 95\%$ o *Task Success* $< 90\%$.
+- **Práctica (Agente -> Local):** Construir un agente de prueba con 3 herramientas (consulta de póliza, cálculo de cobertura, creación de ticket) y una suite `mlflow.genai.evaluate()` con 15 casos de prueba (incluyendo fallos simulados de herramienta) que bloquee el CI si *Tool Reliability* $< 95\%$ o *Task Success* $< 90\%$.
 - **Done:** Tienes un *gate* automatizado en MLflow que mide fiabilidad de herramientas y éxito de tareas antes de cada despliegue.
 
 ### `[B2.2]` Observabilidad de RAG y Salud de Búsqueda Vectorial (Vector Search Health)

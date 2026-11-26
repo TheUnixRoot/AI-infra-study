@@ -56,7 +56,7 @@ Escenario integrado en el proyecto *Golden Path*: inyección controlada de fallo
 ### Checklist Final del Portfolio (`agentic-platform-golden-path`)
 - [ ] `docs/adr/001-serving-topology-databricks-vs-seldon.md` y ADR multi-región UE.
 - [ ] Pipeline CI de promoción MLflow (`@dev` $\rightarrow$ `@staging` $\rightarrow$ `@champion`) con `audit-evidence.json`.
-- [ ] Arnés `mlflow.evaluate()` + colector Prometheus de salud vectorial RAG + paneles OTel/FinOps.
+- [ ] Arnés `mlflow.genai.evaluate()` + colector Prometheus de salud vectorial RAG + paneles OTel/FinOps.
 - [ ] Manifiestos Kind/Seldon/Knative + Istio + Argo Rollouts `AnalysisTemplate` + XRD `XAgenticEnvironment` + `verify.sh < 60s`.
 
 ### Fuentes Primarias
