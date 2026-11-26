@@ -79,5 +79,5 @@ En [`b2_2_vllm_vs_sglang/`](../../../b2_2_vllm_vs_sglang/README.md) ya está lis
 ### Fuentes Primarias
 - Kwon et al. — *PagedAttention / vLLM Docs*: `https://docs.vllm.ai/`
 - Zheng et al. — *SGLang / RadixAttention*: `https://docs.sglang.ai/`
-- FlashInfer & XGrammar: `https://docs.flashinfer.ai/` · `https://blog.mlc.ai/2024/11/22/achieving-efficient-flexible-portability-for-structured-generation-with-xgrammar`
+- FlashInfer & XGrammar: `https://docs.flashinfer.ai/` · `https://xgrammar.mlc.ai/docs/`
 - NVIDIA Dynamo Architecture: `https://docs.nvidia.com/dynamo/`

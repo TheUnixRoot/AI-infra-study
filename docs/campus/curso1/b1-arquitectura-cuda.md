@@ -65,13 +65,13 @@ En [`b1_3_profiling/`](../../../b1_3_profiling/README.md) se midieron 3 antipatr
 
 1. **Paginación en copias H2D (tensor `2048x2048` FP32 = `16 MiB`):** activar `pin_memory=True` + `non_blocking` reduce la transferencia de **`3.71 ms` a `1.78 ms` (`2.08x`)** (`INFORME_RESULTADOS.md`, §4).
 2. **Sincronización CPU-GPU (`torch.cuda.synchronize()` / `.item()`):** los ~`210 ms` de "espera" de `BAD` no son coste de sincronización, sino la CPU esperando al cómputo ya encolado. Quitar `.item()` apenas mejora el paso completo (`1.01x`: `223.1 ms` $\rightarrow$ `220.7 ms`) porque domina el cómputo de ~600 kernels sin fusionar (`218 ms`, ~`93 GB/s` por kernel).
-3. **Solución de fondo (`B1.4`):** requiere fusión de operadores vía `torch.compile` / Triton (`sm_70+`).
+3. **Solución de fondo (`B1.4`):** requiere fusión de operadores vía `torch.compile` / Triton (`torch.compile` exige `sm_70`+; el soporte oficial de Triton es `sm_80`+).
 
 ---
 
 ## B1.4 · Triton y Nsight Compute (`ncu`) (`[PREP]` $\rightarrow$ `[CLD]` 1×L4)
 
-Triton programa a nivel de bloques (`tl.program_id(axis=0)`) vectorizando `tl.load`/`tl.store` sobre MLIR/LLVM para `sm_70+`. En `1x L4` (`sm_89`) cerrarás el ciclo midiendo `ncu --set roofline` (`SM Throughput %` vs `DRAM/HBM Throughput %` y *warp stalls* `stall_long_scoreboard`).
+Triton programa a nivel de bloques (`tl.program_id(axis=0)`) vectorizando `tl.load`/`tl.store` sobre MLIR/LLVM (soporte oficial `sm_80`+). En `1x L4` (`sm_89`) cerrarás el ciclo midiendo `ncu --set roofline` (`SM Throughput %` vs `DRAM/HBM Throughput %` y *warp stalls* `stall_long_scoreboard`).
 
 ---
 

@@ -4,7 +4,7 @@ Calculadora en Python (CPU, sin GPU) que, a partir del `config.json` de un model
 pesos, el KV-cache por token y por secuencia, y cuántas peticiones concurrentes caben en una L40S (48 GB) y una H100 (80 GB).
 
 - Temario: [`docs/temario/00-master-playbook.md`](../docs/temario/00-master-playbook.md) (unidad `B2.1`).
-- Resultados y análisis: [`INFORME_RESULTADOS.md`](../INFORME_RESULTADOS.md#5-b21-aritmética-del-kv-cache-cpu-analítico).
+- Resultados y análisis: [`INFORME_RESULTADOS.md`](../INFORME_RESULTADOS.md).
 
 ## Fórmulas
 

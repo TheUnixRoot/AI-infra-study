@@ -22,7 +22,7 @@ Se publica como sitio de GitHub Pages con **MkDocs Material** (ver `mkdocs.yml` 
 Reglas que se derivan de esto:
 
 - **Todo lo local debe caber en 2 GB de VRAM.** Tensores < 256 MB (por defecto 2048×2048 FP32 = 16 MiB). No lances nada que haga OOM.
-- La GTX 1050 **no** soporta Triton, `ncu` moderno, FlashAttention/FlashInfer/TensorRT-LLM, FP8 ni multi-GPU (exigen `sm_70`–`sm_90`).
+- La GTX 1050 **no** soporta Triton, `ncu` moderno, FlashAttention/FlashInfer/TensorRT-LLM, FP8 ni multi-GPU (exigen `sm_70`+ según la herramienta; Triton oficial y FlashAttention, `sm_80`+; FP8, `sm_89`+).
   Esas unidades son `[PREP]` (se prepara en local, 0 €) + `[CLD]` (ráfaga en cloud). **No alquiles una GPU sin haber completado su `[PREP]`.**
 - En cloud, lo primero en la VM: `sudo shutdown -h +90` (auto-kill). Nunca dejes una GPU encendida.
 - Para compilar para cloud, el runner de B1.2 y el `Dockerfile` aceptan `CUDA_ARCH` (`sm_89` L4/L40S, `sm_90` H100, `sm_61` por defecto).
