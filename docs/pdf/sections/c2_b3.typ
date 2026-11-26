@@ -131,8 +131,8 @@
 
 #concepto-clave[
   1. *Platform Engineering con Crossplane:* En lugar de que cada equipo de producto copie 600 líneas de Terraform para crear un bucket S3/ADLS, una base vectorial, secretos KMS e IAM roles, el equipo de plataforma define una *CompositeResourceDefinition (XRD)* minimalista (`XAgenticEnvironment`) y una *Composition* con políticas de seguridad embebidas (cifrado obligatorio, retención de auditoría, etiquetas FinOps).
-  3. *Crossplane v2:* las `Composition` usan solo funciones de composición (`mode: Pipeline`); el patch-and-transform nativo fue eliminado y los XR con namespace no usan _claims_.
-  4. *Cloud Networking & Zero-Trust Identity:* Tráfico privado obligatorio hacia Databricks Mosaic AI y bases vectoriales mediante *AWS PrivateLink / Azure Private Endpoints* (cero salida por Internet público), e identidades federadas efímeras (*IRSA* en EKS / *Workload Identity* en AKS) eliminando secretos estáticos de larga duración en los pods.
+  2. *Crossplane v2:* las `Composition` usan solo funciones de composición (`mode: Pipeline`); el patch-and-transform nativo fue eliminado y los XR con namespace no usan _claims_.
+  3. *Cloud Networking & Zero-Trust Identity:* Tráfico privado obligatorio hacia Databricks Mosaic AI y bases vectoriales mediante *AWS PrivateLink / Azure Private Endpoints* (cero salida por Internet público), e identidades federadas efímeras (*IRSA* en EKS / *Workload Identity* en AKS) eliminando secretos estáticos de larga duración en los pods.
 ]
 
 #ejercicio-box[

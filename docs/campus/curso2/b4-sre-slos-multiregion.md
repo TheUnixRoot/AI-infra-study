@@ -9,7 +9,7 @@ flowchart LR
     USER["Usuario UE\nSLA Global"] --> GSLB["Gateway Multi-Región UE\nHealth + Token Quota Check"]
     GSLB -- "Primario (2 ms)" --> EUW["eu-west-1 (Irlanda)\nOrquestador + Vector DB + LLM Local"]
     GSLB -- "Failover (< 25 ms)" --> EUC["eu-central-1 (Fráncfort)\nReplica Vectorial + LLM Respaldo"]
-    EUW & EUC -. "PROHIBIDO PII hacia US-East" .-> ERR["Cumplimiento RGPD / AI Act"]
+    EUW & EUC -. "Política de diseño: sin PII hacia US-East" .-> ERR["Cumplimiento RGPD / AI Act"]
 ```
 
 ---
@@ -33,7 +33,7 @@ Escenario integrado en el proyecto *Golden Path*: inyección controlada de fallo
 ## B4.3 · Arquitectura Multi-Región, Soberanía de Datos y Baja Latencia
 
 - **Colocación geográfica (*Co-location*):** en un agente RAG de 3 pasos con 2 consultas vectoriales y 2 llamadas LLM, cruzar regiones transatlánticas añade `> 400–600 ms` de latencia física antes del primer token; **orquestador, base vectorial y endpoint LLM deben vivir en la misma región**.
-- **Soberanía UE (RGPD / EU AI Act):** si el primario en `eu-west-1` sufre *throttling* `HTTP 429` o caída regional, hacer *failover* únicamente a otra región europea equivalente (`eu-central-1`), **nunca** conmutar silenciosamente tráfico regulado hacia `us-east-1`.
+- **Soberanía UE (RGPD / EU AI Act):** si el primario en `eu-west-1` sufre *throttling* `HTTP 429` o caída regional, hacer *failover* únicamente a otra región europea equivalente (`eu-central-1`), **nunca** conmutar silenciosamente tráfico regulado hacia `us-east-1`. Es una *política de diseño* prudente, no una prohibición absoluta del RGPD (las transferencias a EE. UU. son posibles con garantías como el EU-US Data Privacy Framework o cláusulas contractuales tipo); valídala con tu DPO/legal.
 
 ---
 
@@ -51,6 +51,7 @@ Escenario integrado en el proyecto *Golden Path*: inyección controlada de fallo
 
 ??? success "Ver solución C2-B4-B"
     - Caída observada: `2 h` ($120\ \text{min}$) $\times 1.2 \% \approx \mathbf{1.44\ \text{min}}$ de minutos-error equivalentes ($120 \times 0.012$).
+    - **Respuesta:** $1.44 / 43.2 \approx \mathbf{3.3\ \%}$ del presupuesto mensual.
     - Si en cambio fuera `50 %` de error durante 2 h: $120 \times 0.50 = 60\ \text{min}$, superando el `100 %` del presupuesto mensual (`43.2 min`) en una sola mañana (*Fast Burn Alert* necesaria en ventana de 5m–1h).
 
 ### Checklist Final del Portfolio (`agentic-platform-golden-path`)
@@ -61,4 +62,4 @@ Escenario integrado en el proyecto *Golden Path*: inyección controlada de fallo
 
 ### Fuentes Primarias
 - Google SRE Book — *Implementing SLOs & Error Budgets*: `https://sre.google/workbook/implementing-slos/`
-- AWS / Azure Well-Architected — *Generative AI Multi-Region Resilience*
+- AWS Well-Architected — *Generative AI Lens*: `https://docs.aws.amazon.com/wellarchitected/latest/generative-ai-lens/generative-ai-lens.html` · Azure Well-Architected — *AI workloads*: `https://learn.microsoft.com/en-us/azure/well-architected/ai/`

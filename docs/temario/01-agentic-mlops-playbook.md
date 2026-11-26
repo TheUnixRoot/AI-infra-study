@@ -4,7 +4,7 @@
 >
 > **Punto de partida (Baseline):** Perfil Senior DevOps / SRE (CI/CD empresarial, promoción multi-entorno, gestión de secretos/identidad, IaC en AWS/Azure, Kubernetes, SLOs, respuesta a incidentes y Prometheus/Grafana). Este plan **no repite fundamentos básicos de DevOps**, sino que cierra al 100 % las brechas específicas del puesto: ecosistema **Databricks (MLflow, Mosaic AI, Unity Catalog)**, **gobernanza y auditoría por diseño**, **evaluación y observabilidad de agentes/RAG**, y **serving cloud-native (Seldon, Knative, Istio, ArgoCD, Crossplane, OpenSearch)**.
 >
-> **Restricción operativa:** Todo el temario se ejecuta en **micro-sprints de 20 minutos** combinando lectura técnica desde el móvil (`[MOB]`) y ejecución práctica en local (`[LOC]` con Docker/Kind/MLflow/Python) delegada a un **Agente de Código**, más laboratorios gratuitos en **Databricks Free Edition / Trial** (`[LAB]`).
+> **Restricción operativa:** Todo el temario se ejecuta en **micro-sprints de 20 minutos** combinando lectura técnica desde el móvil (`[MOB]`) y ejecución práctica en local (`[LOC]` con Docker/Kind/MLflow/Python) delegada a un **Agente de Código**, más laboratorios gratuitos en **Databricks Free Edition / Trial** (`[LAB]`). *Nota:* Free Edition tiene límites (sin endpoints GPU ni *provisioned throughput*, pocos endpoints de serving y un único endpoint de Vector Search); consulta su [página de limitaciones](https://docs.databricks.com/aws/en/getting-started/free-edition-limitations) antes de planificar cada `[LAB]`, y usa el Trial si un límite te bloquea.
 
 ---
 
@@ -101,7 +101,7 @@ Cada bloque construye una pieza de un repositorio de referencia listo para mostr
   - Redacción de ADRs (*Architecture Decision Records*): cómo justificar criterios de migración desde Seldon en K8s hacia Databricks Mosaic AI según latencia, aislamiento, coste y cumplimiento.
 - **Recursos en texto (móvil):**
   1. Databricks Docs — *Mosaic AI Model Serving Overview y Deploy AI Agents*: `https://docs.databricks.com/en/machine-learning/model-serving/`
-  2. Documentación de patrones ADR (Michael Nygard ADR template).
+  2. Michael Nygard — *Documenting Architecture Decisions* (plantilla ADR): `https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions`
 - **Práctica:** Redactar `docs/adr/001-serving-topology-databricks-vs-seldon.md` definiendo matriz de decisión (SLOs, coste, gobernanza, portabilidad).
 - **Done:** Puedes defender en 3 minutos cuándo mantener un modelo/agente en Kubernetes/Seldon y cuándo migrarlo a Databricks Mosaic AI Serverless.
 
