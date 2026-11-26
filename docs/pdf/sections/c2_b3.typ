@@ -56,6 +56,7 @@
 
 #concepto-clave[
   1. *Seldon Core v2 (Data-Centric Pipelines):* Diseñado para flujos multi-etapa con alto throughput mediante un plano de datos desacoplado (Kafka / gRPC / REST) y dos CRDs clave: `Model` (despliegue sobre runtimes Triton/MLServer/custom) y `Pipeline` (grafo declarativo que encadena pasos: *PII Guardrail $arrow.r$ Embedding/RAG $arrow.r$ Modelo/Agente $arrow.r$ Verificador de salida*). Soporta *multi-model serving* compartiendo servidores cuando los modelos son pequeños.
+  3. *Licencia de Seldon y ruta de despliegue:* desde enero de 2024 Seldon Core v1/v2 usan BSL 1.1 (producción con licencia comercial). Además, Knative reparte tráfico por _Revisions_ y Argo Rollouts gestiona objetos `Rollout`, no Services de Knative: elige una sola ruta (Knative, o Istio + Argo Rollouts).
   2. *Knative Serving (Concurrencia y Scale-to-Zero):* Ideal para servicios HTTP/SSE de agentes en Python (LangGraph / FastAPI) y endpoints de inferencia donde escalar por CPU (`HPA`) falla porque un pod esperando respuesta del LLM o de una tool tiene CPU al 5% mientras satura conexiones. El *Knative Pod Autoscaler (KPA)* escala por *concurrencia en vuelo* (`containerConcurrency` / `target-utilization`) y gestiona *Revisions* inmutables con *scale-to-zero* en `dev`/`test` para ahorrar GPU/CPU fuera de horario.
 ]
 
@@ -130,7 +131,8 @@
 
 #concepto-clave[
   1. *Platform Engineering con Crossplane:* En lugar de que cada equipo de producto copie 600 líneas de Terraform para crear un bucket S3/ADLS, una base vectorial, secretos KMS e IAM roles, el equipo de plataforma define una *CompositeResourceDefinition (XRD)* minimalista (`XAgenticEnvironment`) y una *Composition* con políticas de seguridad embebidas (cifrado obligatorio, retención de auditoría, etiquetas FinOps).
-  2. *Cloud Networking & Zero-Trust Identity:* Tráfico privado obligatorio hacia Databricks Mosaic AI y bases vectoriales mediante *AWS PrivateLink / Azure Private Endpoints* (cero salida por Internet público), e identidades federadas efímeras (*IRSA* en EKS / *Workload Identity* en AKS) eliminando secretos estáticos de larga duración en los pods.
+  3. *Crossplane v2:* las `Composition` usan solo funciones de composición (`mode: Pipeline`); el patch-and-transform nativo fue eliminado y los XR con namespace no usan _claims_.
+  4. *Cloud Networking & Zero-Trust Identity:* Tráfico privado obligatorio hacia Databricks Mosaic AI y bases vectoriales mediante *AWS PrivateLink / Azure Private Endpoints* (cero salida por Internet público), e identidades federadas efímeras (*IRSA* en EKS / *Workload Identity* en AKS) eliminando secretos estáticos de larga duración en los pods.
 ]
 
 #ejercicio-box[

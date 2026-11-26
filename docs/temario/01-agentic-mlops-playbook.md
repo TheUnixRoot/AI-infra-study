@@ -181,6 +181,7 @@ Cada bloque construye una pieza de un repositorio de referencia listo para mostr
   - Seldon Core v2: Arquitectura orientada a datos (Kafka/gRPC/REST), `Model` y `Pipeline` CRDs (encadenamiento de preprocesado -> modelo -> postprocesado/guardrails), *multi-model serving* y explicación/monitorización integrada.
   - Knative Serving: Autoscaling basado en concurrencia/RPS (KPA/HPA), *scale-to-zero* para entornos dev/test o cargas intermitentes, gestión de *Revisions* y división de tráfico.
   - Cuándo usar Seldon Pipelines frente a orquestadores agénticos en Python (LangGraph/LlamaIndex) sobre Knative.
+  - **Licencia:** desde enero de 2024 Seldon Core v1/v2 usan BSL 1.1 (producción requiere licencia comercial); valóralo en el ADR.
 - **Recursos en texto (móvil):**
   1. Seldon Core v2 Architecture & Concepts Docs: `https://docs.seldon.io/projects/seldon-core/en/v2/`
   2. Knative Serving Docs — *Autoscaling & Traffic Management*: `https://knative.dev/docs/serving/`
@@ -191,7 +192,7 @@ Cada bloque construye una pieza de un repositorio de referencia listo para mostr
 - **Modo:** `[MOB]` (2 sprints) + `[LOC]` (2 sprints)
 - **Conceptos clave:**
   - Istio Service Mesh: `VirtualService` y `DestinationRule` para *weighted traffic splitting* (95% `@champion` / 5% `@challenger`), *traffic mirroring / shadow testing* (evaluar un nuevo agente con tráfico real sin afectar al usuario), mTLS estricto y timeouts/retries seguros para *tool calls*.
-  - ArgoCD + Argo Rollouts: GitOps declarativo multi-entorno (`dev -> test -> prod`), sincronización automática con aprobación manual en producción, *Canary Rollouts* guiados por métricas de Prometheus/MLflow (si sube latencia p99 o baja *tool reliability*, *auto-rollback* inmediato).
+  - (Elige una ruta: Knative reparte tráfico por *Revisions*; Argo Rollouts gestiona `Rollout`, no Services de Knative.) ArgoCD + Argo Rollouts: GitOps declarativo multi-entorno (`dev -> test -> prod`), sincronización automática con aprobación manual en producción, *Canary Rollouts* guiados por métricas de Prometheus/MLflow (si sube latencia p99 o baja *tool reliability*, *auto-rollback* inmediato).
 - **Recursos en texto (móvil):**
   1. Istio Docs — *Traffic Management & Mirroring*: `https://istio.io/latest/docs/tasks/traffic-management/`
   2. Argo Rollouts Docs — *Canary & Prometheus Analysis*: `https://argo-rollouts.readthedocs.io/`
@@ -201,7 +202,7 @@ Cada bloque construye una pieza de un repositorio de referencia listo para mostr
 ### `[B3.3]` Infraestructura como Código y Golden Paths con Crossplane + Cloud Networking
 - **Modo:** `[MOB]` (2 sprints) + `[LOC]` (1 sprint)
 - **Conceptos clave:**
-  - Crossplane: *Control plane* de infraestructura nativo en Kubernetes; Providers (AWS/Azure), Managed Resources, `CompositeResourceDefinitions` (XRDs) y `Compositions` para ofrecer *Golden Paths* de autoservicio (ej. un equipo pide un `AgenticWorkspace` con un YAML sencillo y Crossplane aprovisiona bucket de artefactos, base vectorial, secretos e identidad IAM).
+  - Crossplane (v2: composiciones solo mediante *funciones*, sin patch-and-transform nativo): *Control plane* de infraestructura nativo en Kubernetes; Providers (AWS/Azure), Managed Resources, `CompositeResourceDefinitions` (XRDs) y `Compositions` para ofrecer *Golden Paths* de autoservicio (ej. un equipo pide un `AgenticWorkspace` con un YAML sencillo y Crossplane aprovisiona bucket de artefactos, base vectorial, secretos e identidad IAM).
   - Cloud Networking & Security (Azure / AWS): Private Endpoints / PrivateLink hacia Databricks y servicios de modelos, Zero-Trust networking, Workload Identity / IRSA para eliminar credenciales estáticas en pipelines y pods.
 - **Recursos en texto (móvil):**
   1. Crossplane Docs — *Compositions & Platform Engineering*: `https://docs.crossplane.io/`
