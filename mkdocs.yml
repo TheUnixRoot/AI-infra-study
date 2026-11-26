@@ -1,5 +1,5 @@
-site_name: AI Infra Study
-site_description: Learning path de AI Infrastructure con prácticas reproducibles sobre GPU
+site_name: AI Infra & Agentic MLOps · Campus
+site_description: Campus técnico de nivel Máster — AI Infrastructure (GPU/CUDA/Serving) y Enterprise Agentic MLOps (Databricks/MLflow/K8s/SRE)
 site_url: https://theunixroot.github.io/AI-infra-study/
 repo_url: https://github.com/TheUnixRoot/AI-infra-study
 repo_name: TheUnixRoot/AI-infra-study
@@ -11,49 +11,101 @@ use_directory_urls: true
 theme:
   name: material
   language: es
+  icon:
+    logo: material/school
+    repo: fontawesome/brands/github
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: teal
-      toggle: { icon: material/weather-night, name: Modo oscuro }
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Cambiar a modo oscuro
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: teal
-      toggle: { icon: material/weather-sunny, name: Modo claro }
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Cambiar a modo claro
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
+    - navigation.indexes
     - navigation.top
+    - navigation.footer
     - navigation.instant
+    - navigation.instant.progress
+    - search.suggest
+    - search.highlight
     - content.code.copy
+    - content.tabs.link
     - toc.follow
 
 nav:
-  - Inicio: README.md
-  - Temario:
-      - Master Playbook: docs/temario/00-master-playbook.md
-  - Prácticas:
-      - B1.1 Strides y contiguous: b1_1_strides/README.md
-      - B1.2 CUDA C++: b1_2_cuda_gemm/README.md
+  - Campus:
+      - Inicio y Mapa General: README.md
+      - Tour del Campus y Rutas de Estudio: docs/campus/index.md
+      - Mi Progreso y Handover (20 min): docs/campus/progreso.md
+      - Biblioteca PDF y Fuentes Typst: docs/campus/biblioteca-pdf.md
+  - Tronco Común:
+      - 6 Pilares y Sistema Operativo: docs/campus/tronco-comun.md
+      - Mapa Comparativo (Referencia): docs/temario/02-tronco-comun-y-itinerarios.md
+  - "Curso 1 · AI Infra":
+      - Portal del Curso 1: docs/campus/curso1/index.md
+      - B1 · GPU, CUDA C++ y Profiling: docs/campus/curso1/b1-arquitectura-cuda.md
+      - B2 · Motores, KV-Cache y Agentes: docs/campus/curso1/b2-motores-kv-cache.md
+      - B3 · Cuantización y SpecDecode: docs/campus/curso1/b3-cuantizacion-pareto.md
+      - B4 · Paralelismo, MoE y NCCL: docs/campus/curso1/b4-paralelismo-moe-nccl.md
+      - B5 · Benchmarking y Clústeres: docs/campus/curso1/b5-cluster-benchmarking.md
+      - Playbook Maestro (Curso 1): docs/temario/00-master-playbook.md
+  - "Curso 2 · Agentic MLOps":
+      - Portal del Curso 2: docs/campus/curso2/index.md
+      - B1 · Databricks, MLflow 3 y Unity Catalog: docs/campus/curso2/b1-databricks-mlflow-uc.md
+      - B2 · Evals, RAG Health y OTel/FinOps: docs/campus/curso2/b2-evals-rag-observabilidad.md
+      - B3 · Seldon, Istio, ArgoCD y Crossplane: docs/campus/curso2/b3-serving-gitops-crossplane.md
+      - B4 · SRE SLOs, GameDay y Multi-Región: docs/campus/curso2/b4-sre-slos-multiregion.md
+      - Playbook Maestro (Curso 2): docs/temario/01-agentic-mlops-playbook.md
+  - Labs y Resultados:
+      - Informe GTX 1050 (Resultados Reales): INFORME_RESULTADOS.md
+      - B1.1 Strides y .contiguous(): b1_1_strides/README.md
+      - B1.2 CUDA C++ (GEMM y Softmax): b1_2_cuda_gemm/README.md
       - B1.3 Profiling con nsys: b1_3_profiling/README.md
-      - B2.1 KV-Cache: b2_1_kv_cache/README.md
-  - Resultados: INFORME_RESULTADOS.md
-  - Ejecución y herramientas (Windows, Linux, WSL2): AGENTS.md
+      - B2.1 Calculadora KV-Cache: b2_1_kv_cache/README.md
+      - B2.2 vLLM vs SGLang ([PREP]): b2_2_vllm_vs_sglang/README.md
+  - Guías y Entorno:
+      - Configuración por SO (Win/Linux/WSL2/Docker/Termux): AGENTS.md
 
 markdown_extensions:
   - tables
   - toc:
       permalink: true
   - admonition
+  - attr_list
+  - md_in_html
   - pymdownx.arithmatex:
       generic: true
-  - pymdownx.superfences
-  - pymdownx.highlight
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
   - pymdownx.tasklist:
       custom_checkbox: true
 
 extra_javascript:
   - docs/javascripts/katex.js
+  - docs/javascripts/campus.js
   - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js
   - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js
 extra_css:
+  - docs/stylesheets/campus.css
   - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css
