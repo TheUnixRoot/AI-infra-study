@@ -10,3 +10,7 @@ site/
 # B2.2 dry-run (datos sinteticos)
 artifacts/b2_2_dryrun/
 artifacts/b2_2_logs/
+
+# Python bytecode
+__pycache__/
+*.py[cod]

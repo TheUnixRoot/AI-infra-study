@@ -30,7 +30,7 @@ Para evitar chats infinitos que degraden el contexto del LLM y pierdan trazabili
 #### A. Prompt de Inicio / Fork de Chat de Bloque
 ```text
 [FORK CHAT-Bx]
-Contexto: Lee `ai_infra_master_playbook.md` en las fuentes.
+Contexto: Lee `docs/temario/00-master-playbook.md` en las fuentes.
 Bloque activo: [Bx] | Unidad actual: [Bx.y]
 Estado previo (Handover): <pegar último bloque de handover o "Inicio de bloque">
 Tiempo disponible ahora: 20 minutos | Modo: [MOB / LOC / PREP / CLD]
@@ -473,12 +473,12 @@ No construyas los proyectos al final: cada unidad alimenta directamente un repos
 
 | ID | Unidad | Modo principal | Cloud | Estado |
 | :--- | :--- | :--- | :---: | :---: |
-| `B1.1` | Roofline & PyTorch Internals | `[MOB]` `[LOC]` | No | `[ ]` |
-| `B1.2` | CUDA C++ Local (`sm_61`) | `[MOB]` `[LOC]` | No | `[ ]` |
-| `B1.3` | Profiling `nsys` y Linux `perf` | `[MOB]` `[LOC]` | No | `[ ]` |
+| `B1.1` | Roofline & PyTorch Internals | `[MOB]` `[LOC]` | No | `[x]` |
+| `B1.2` | CUDA C++ Local (`sm_61`) | `[MOB]` `[LOC]` | No | `[x]` |
+| `B1.3` | Profiling `nsys` y Linux `perf` | `[MOB]` `[LOC]` | No | `[~]` (`nsys` hecho; `perf` pendiente) |
 | `B1.4` | OpenAI Triton y `ncu` | `[PREP]` `[CLD]` | Cloud-1 | `[ ]` |
-| `B2.1` | Aritmética KV-Cache y Prefill/Decode | `[MOB]` `[LOC]` | No | `[ ]` |
-| `B2.2` | vLLM vs. SGLang y FlashInfer | `[PREP]` `[CLD]` | Cloud-2 | `[ ]` |
+| `B2.1` | Aritmética KV-Cache y Prefill/Decode | `[MOB]` `[LOC]` | No | `[x]` |
+| `B2.2` | vLLM vs. SGLang y FlashInfer | `[PREP]` `[CLD]` | Cloud-2 | `[~]` (`[PREP]` hecho; `[CLD]` pendiente) |
 | `B2.3` | TensorRT-LLM y NVIDIA Dynamo (`aisim`) | `[MOB]` `[LOC]` | Opcional | `[ ]` |
 | `B2.4` | Cargas Agénticas (Prefix Cache + JSON) | `[PREP]` `[CLD]` | Cloud-2 | `[ ]` |
 | `B3.1` | Teoría Cuantización (FP8/INT4/NVFP4) | `[MOB]` | No | `[ ]` |

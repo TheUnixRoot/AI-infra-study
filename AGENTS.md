@@ -8,7 +8,7 @@ Guía para agentes de código (Claude Code, Gemini CLI, Codex, Copilot…) y par
 Learning path de **AI Infrastructure** (GPU, inferencia y benchmarking de clústeres) con prácticas reproducibles.
 El temario está en [`docs/temario/00-master-playbook.md`](docs/temario/00-master-playbook.md) y el [`README.md`](README.md) es su índice,
 con enlaces a cada práctica. Los resultados medidos están en [`INFORME_RESULTADOS.md`](INFORME_RESULTADOS.md).
-Se publica como sitio de GitHub Pages (Jekyll, ver `_config.yml`).
+Se publica como sitio de GitHub Pages con **MkDocs Material** (ver `mkdocs.yml` y la sección 7).
 
 ## 2. Hardware: local frente a cloud
 
@@ -43,6 +43,7 @@ mkdir -p .venv/bin && printf '#!/usr/bin/env bash\nexec "$(dirname "$0")/../Scri
 export PATH="$PWD/.venv/bin:$PATH"            # los run.sh buscan `python3`
 (cd b1_1_strides && ./run.sh --smoke-test)    # B1.1
 (cd b2_1_kv_cache && ./run.sh)                # B2.1
+bash b2_2_vllm_vs_sglang/run_compare.sh --dry-run   # B2.2 [PREP] sin GPU
 ```
 
 - **B1.3 con nsys real:** instala Nsight Systems nativo de Windows (2024.5.1 o similar; tiene soporte Pascal) y ejecuta con el
@@ -88,6 +89,18 @@ docker run --rm --gpus all -v "$PWD":/work ai-infra-study:cuda12.6 bash -c "cd b
 # Cloud: autocontenida (torch dentro) y arquitectura de la GPU
 docker build -t ai-infra-study:cloud --build-arg CUDA_ARCH=sm_90 .      # sm_89 para L4/L40S
 ```
+
+### 3.5 Entorno sin GPU (Termux / móvil / CI solo CPU)
+
+Si trabajas desde un entorno sin GPU NVIDIA (p. ej. Termux en Android para revisar temario o preparar `[PREP]`):
+
+- **Prohibido ejecutar código GPU/CUDA aquí** (`nvcc`, `nsys`, `perf` o benchmarks PyTorch CUDA). No sobrescribas los artefactos reales de `artifacts/` medidos en la GTX 1050.
+- Solo se ejecutan validaciones offline en CPU/Python puro y comprobaciones de sintaxis:
+  ```bash
+  python3 -m unittest discover -s tests -v
+  (cd b2_1_kv_cache && ./run.sh)
+  bash b2_2_vllm_vs_sglang/run_compare.sh --dry-run
+  ```
 
 ## 4. Qué herramienta está disponible en cada sistema
 
