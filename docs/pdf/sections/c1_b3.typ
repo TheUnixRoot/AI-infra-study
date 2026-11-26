@@ -133,7 +133,7 @@
 ]
 
 #ejercicio-box[
-  *Ejercicio B3.4-A (FinOps & Pareto):* Una H100 (`$3.00/h`) sirve Qwen-32B en BF16 a `420 tok/s` totales (`TPOT p99 = 38 ms`, `Tool Accuracy = 96.5%`), en FP8+KV-FP8 a `890 tok/s` (`TPOT p99 = 24 ms`, `Tool Accuracy = 96.0%`), y en AWQ 4-bit a `940 tok/s` (`TPOT p99 = 22 ms`, `Tool Accuracy = 91.2%`). Calcula el coste `$/1M tokens` de las tres opciones y razona cuál queda en la frontera de Pareto si el SLO exige `Tool Accuracy >= 95%`.
+  *Ejercicio B3.4-A (FinOps & Pareto, datos hipotéticos no medidos):* Una H100 (`$3.00/h`) sirve Qwen-32B en BF16 a `420 tok/s` totales (`TPOT p99 = 38 ms`, `Tool Accuracy = 96.5%`), en FP8+KV-FP8 a `890 tok/s` (`TPOT p99 = 24 ms`, `Tool Accuracy = 96.0%`), y en AWQ 4-bit a `940 tok/s` (`TPOT p99 = 22 ms`, `Tool Accuracy = 91.2%`). Calcula el coste `$/1M tokens` de las tres opciones y razona cuál queda en la frontera de Pareto si el SLO exige `Tool Accuracy >= 95%`.
 ]
 
 #solucion-box[

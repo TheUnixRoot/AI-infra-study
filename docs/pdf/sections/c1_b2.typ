@@ -133,7 +133,7 @@
 
 #concepto-clave[
   1. *Perfil de Tráfico Agéntico:* A diferencia del chat genérico, los agentes envían *system prompts masivos repetidos* (definiciones de 10–30 herramientas + ejemplos *few-shot* = 3k–6k tokens idénticos), producen salidas cortas en *streaming* SSE y exigen *Structured Outputs* (JSON Schema válido sin errores de sintaxis).
-  2. *Prefix Caching (APC / RadixAttention):* Evita recalcular el *prefill* de los primeros $S_"pref"$ tokens compartidos; convierte un coste $O(S_"pref"^2)$ por petición en una lectura directa de KV-Cache, reduciendo el TTFT hasta *3x–8x* cuando 32–64 agentes comparten contexto.
+  2. *Prefix Caching (APC / RadixAttention):* Evita recalcular el *prefill* de los primeros $S_"pref"$ tokens compartidos; convierte un coste $O(S_"pref"^2)$ por petición en una lectura directa de KV-Cache, reduciendo el TTFT (la magnitud depende de la carga y se mide en B2.4) cuando 32–64 agentes comparten contexto.
   3. *Coste de Constrained Decoding (XGrammar / Outlines / llguidance):* En cada token de salida, una máquina de estados finitos (FSM) o gramática libre de contexto precomputa una máscara binaria sobre el vocabulario ($|V| approx 151936$ en Qwen2.5) para poner a $-infinity$ los logits inválidos. Si el enmascaramiento CPU no está compilado/cacheado (*jump-forward* / *compressed FSM*), puede introducir burbujas en el loop de decode a alta concurrencia.
 ]
 
