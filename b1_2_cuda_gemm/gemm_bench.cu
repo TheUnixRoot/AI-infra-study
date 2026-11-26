@@ -29,6 +29,7 @@
     } while (0)
 
 #define TILE_DIM 32
+#define TILE_DIM_16 16
 
 /* ==============================================================================
  * KERNEL 1: gemm_naive
@@ -38,9 +39,10 @@
  * En CUDA, los hilos de un warp (32 hilos) tienen threadIdx.x consecutivo (0..31).
  * Al mapear threadIdx.x a row, los 32 hilos del warp poseen diferente 'row' y
  * mismo 'col'.
- * Al leer A[row * K + k], la distancia en memoria entre hilos adyacentes es K floats
- * (K * 4 bytes). Cada hilo solicita una línea de caché L1/L2 distinta, generando
- * hasta 32 transacciones DRAM separadas por instrucción (acceso 100% no coalescente).
+ * - A[row * K + k]: salto de K * 4 bytes entre hilos adyacentes (1 sector L2 de 32 B
+ *   por hilo para leer 4 B -> 87.5% de desperdicio de ancho de banda).
+ * - B[k * N + col]: todos los hilos leen el mismo dato -> broadcast de warp.
+ * - C[row * N + col]: escritura no coalescente a saltos de N * 4 bytes.
  * ============================================================================== */
 __global__ void gemm_naive(const float* __restrict__ A,
                            const float* __restrict__ B,
@@ -52,9 +54,9 @@ __global__ void gemm_naive(const float* __restrict__ A,
     if (row < M && col < N) {
         float sum = 0.0f;
         for (int k = 0; k < K; ++k) {
-            sum += A[row * K + k] * B[k * N + col];
+            sum += A[(size_t)row * K + k] * B[(size_t)k * N + col];
         }
-        C[row * N + col] = sum;
+        C[(size_t)row * N + col] = sum;
     }
 }
 
@@ -68,7 +70,7 @@ __global__ void gemm_naive(const float* __restrict__ A,
  * - Lectura de A[row * K + k]: 'row' y 'k' son IDÉNTICOS para los 32 hilos.
  *   El SM realiza un único broadcast desde L1/L2 cache a todo el warp (1 ciclo).
  * - Lectura de B[k * N + col]: Las direcciones son contiguas (k*N + col, k*N + col+1...).
- *   Los 32 accesos de 4 bytes se agrupan en una única transacción coalescente de 128 bytes.
+ *   Los 32 accesos de 4 bytes se agrupan en una línea L2 de 128 B (4 sectores de 32 B).
  * - Escritura de C[row * N + col]: Perfectamente coalescente (128 bytes contiguos).
  * ============================================================================== */
 __global__ void gemm_coalesced(const float* __restrict__ A,
@@ -81,19 +83,72 @@ __global__ void gemm_coalesced(const float* __restrict__ A,
     if (row < M && col < N) {
         float sum = 0.0f;
         for (int k = 0; k < K; ++k) {
-            sum += A[row * K + k] * B[k * N + col];
+            sum += A[(size_t)row * K + k] * B[(size_t)k * N + col];
         }
-        C[row * N + col] = sum;
+        C[(size_t)row * N + col] = sum;
     }
 }
 
 /* ==============================================================================
- * KERNEL 3: gemm_smem_tiled
+ * KERNEL 3: gemm_smem_tiled_16
+ * Tiling cooperativo en Shared Memory de 16x16 floats (256 hilos/bloque)
+ *
+ * Compromiso arquitectural frente a 32x32 en Pascal (sm_61):
+ * - Tile: 16x16 floats (As: 1 KB, Bs: 1 KB -> 2 KB SMEM por bloque).
+ * - Ocupación más fina: 256 hilos (8 warps) permiten hasta 8 bloques/SM (2048 hilos)
+ *   y evitan caer de golpe al 50% si el kernel supera 32 registros/hilo; además cada
+ *   __syncthreads() solo detiene 8 warps y permite a otros bloques ocultarlo.
+ * - Coste: factor de reutilización 16x (la mitad que 32x32) y doble de barreras.
+ * - Cero bank conflicts: en warp de 32 hilos con blockDim(16,16), los medios warps
+ *   ty=0 y ty=1 acceden a filas distintas de As[ty][k] (16 apart) y hacen broadcast
+ *   por medio warp en Bs[k][tx].
+ * ============================================================================== */
+__global__ void gemm_smem_tiled_16(const float* __restrict__ A,
+                                   const float* __restrict__ B,
+                                   float* __restrict__ C,
+                                   int M, int N, int K) {
+    __shared__ float As[TILE_DIM_16][TILE_DIM_16];
+    __shared__ float Bs[TILE_DIM_16][TILE_DIM_16];
+
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+
+    int col = blockIdx.x * TILE_DIM_16 + tx;
+    int row = blockIdx.y * TILE_DIM_16 + ty;
+
+    float sum = 0.0f;
+    int numTiles = (K + TILE_DIM_16 - 1) / TILE_DIM_16;
+
+    for (int t = 0; t < numTiles; ++t) {
+        int a_col = t * TILE_DIM_16 + tx;
+        int b_row = t * TILE_DIM_16 + ty;
+
+        As[ty][tx] = (row < M && a_col < K) ? A[(size_t)row * K + a_col] : 0.0f;
+        Bs[ty][tx] = (b_row < K && col < N) ? B[(size_t)b_row * N + col] : 0.0f;
+
+        __syncthreads();
+
+        #pragma unroll
+        for (int k = 0; k < TILE_DIM_16; ++k) {
+            sum += As[ty][k] * Bs[k][tx];
+        }
+
+        __syncthreads();
+    }
+
+    if (row < M && col < N) {
+        C[(size_t)row * N + col] = sum;
+    }
+}
+
+/* ==============================================================================
+ * KERNEL 4: gemm_smem_tiled
  * Tiling cooperativo en Shared Memory de 32x32 floats con doble __syncthreads()
  *
  * Impacto arquitectural (Data Reuse & Bank Conflict Free):
  * - Tile: 32x32 floats (As: 4 KB, Bs: 4 KB -> Total 8 KB SMEM por bloque).
- *   En Pascal GP107 (GTX 1050), con 48 KB de SMEM por SM, permite alta ocupación.
+ *   En Pascal GP107 (GTX 1050), cada bloque de 1024 hilos ocupa 32 warps (máx. 2
+ *   bloques/SM -> cae al 50% de ocupación si supera 32 registros/hilo).
  * - Factor de Reutilización: Cada dato transferido desde DRAM GDDR5 a SMEM es reutilizado
  *   32 veces por los hilos del bloque, reduciendo el tráfico global DRAM en hasta 32x.
  * - Shared Memory Banks:
@@ -127,8 +182,8 @@ __global__ void gemm_smem_tiled(const float* __restrict__ A,
         int b_row = t * TILE_DIM + ty;
 
         // Carga colaborativa con verificación de bordes
-        As[ty][tx] = (row < M && a_col < K) ? A[row * K + a_col] : 0.0f;
-        Bs[ty][tx] = (b_row < K && col < N) ? B[b_row * N + col] : 0.0f;
+        As[ty][tx] = (row < M && a_col < K) ? A[(size_t)row * K + a_col] : 0.0f;
+        Bs[ty][tx] = (b_row < K && col < N) ? B[(size_t)b_row * N + col] : 0.0f;
 
         // Barrera 1: Tile completamente cargado en SMEM
         __syncthreads();
@@ -144,7 +199,7 @@ __global__ void gemm_smem_tiled(const float* __restrict__ A,
     }
 
     if (row < M && col < N) {
-        C[row * N + col] = sum;
+        C[(size_t)row * N + col] = sum;
     }
 }
 
@@ -221,6 +276,66 @@ typedef struct {
 } GemmResult;
 
 /* ==============================================================================
+ * HELPER DE EJECUCIÓN Y VERIFICACIÓN PARA KERNELS GEMM PERSONALIZADOS
+ * ============================================================================== */
+template <typename LaunchFn>
+void benchmark_custom_kernel(const char* name, LaunchFn launch_fn,
+                             dim3 grid, dim3 block,
+                             const float* d_A, const float* d_B, float* d_C_cand,
+                             float* h_C_cand, const float* h_C_ref,
+                             int M, int N, int K, size_t bytes_C,
+                             int warmup_iters, int bench_iters,
+                             double total_flops, cudaEvent_t ev_start, cudaEvent_t ev_stop,
+                             GemmResult* out_res) {
+    CUDA_CHECK(cudaMemset(d_C_cand, 0, bytes_C));
+
+    for (int i = 0; i < warmup_iters; ++i) {
+        launch_fn(grid, block, d_A, d_B, d_C_cand, M, N, K);
+    }
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    CUDA_CHECK(cudaEventRecord(ev_start, 0));
+    for (int i = 0; i < bench_iters; ++i) {
+        launch_fn(grid, block, d_A, d_B, d_C_cand, M, N, K);
+    }
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaEventRecord(ev_stop, 0));
+    CUDA_CHECK(cudaEventSynchronize(ev_stop));
+
+    float ms = 0.0f;
+    CUDA_CHECK(cudaEventElapsedTime(&ms, ev_start, ev_stop));
+    float avg_ms = ms / (float)bench_iters;
+    double gflops = total_flops / (avg_ms * 1e6);
+
+    CUDA_CHECK(cudaMemcpy(h_C_cand, d_C_cand, bytes_C, cudaMemcpyDeviceToHost));
+    float abs_err = 0.0f, rel_err = 0.0f;
+    bool ok = verify_results(h_C_cand, h_C_ref, M * N, &abs_err, &rel_err);
+
+    snprintf(out_res->name, sizeof(out_res->name), "%s", name);
+    out_res->M = M; out_res->N = N; out_res->K = K;
+    out_res->avg_ms = avg_ms;
+    out_res->gflops = gflops;
+    out_res->speedup = 1.0;
+    out_res->verified = ok;
+    out_res->max_abs_err = abs_err;
+    out_res->max_rel_err = rel_err;
+}
+
+static void launch_naive(dim3 g, dim3 b, const float* A, const float* B, float* C, int M, int N, int K) {
+    gemm_naive<<<g, b>>>(A, B, C, M, N, K);
+}
+static void launch_coalesced(dim3 g, dim3 b, const float* A, const float* B, float* C, int M, int N, int K) {
+    gemm_coalesced<<<g, b>>>(A, B, C, M, N, K);
+}
+static void launch_smem_16(dim3 g, dim3 b, const float* A, const float* B, float* C, int M, int N, int K) {
+    gemm_smem_tiled_16<<<g, b>>>(A, B, C, M, N, K);
+}
+static void launch_smem_32(dim3 g, dim3 b, const float* A, const float* B, float* C, int M, int N, int K) {
+    gemm_smem_tiled<<<g, b>>>(A, B, C, M, N, K);
+}
+
+/* ==============================================================================
  * FUNCIÓN PRINCIPAL DE EJECUCIÓN POR TAMAÑO
  * ============================================================================== */
 void benchmark_dimension(int M, int N, int K, int warmup_iters, int bench_iters,
@@ -229,6 +344,16 @@ void benchmark_dimension(int M, int N, int K, int warmup_iters, int bench_iters,
     size_t bytes_B = (size_t)K * N * sizeof(float);
     size_t bytes_C = (size_t)M * N * sizeof(float);
     size_t total_vram = bytes_A + bytes_B + 2 * bytes_C; // d_A, d_B, d_C_cand, d_C_ref
+
+    size_t free_vram = 0, total_gpu_vram = 0;
+    CUDA_CHECK(cudaMemGetInfo(&free_vram, &total_gpu_vram));
+    if (total_vram > (size_t)((double)free_vram * 0.90)) {
+        fprintf(stderr,
+                "[FATAL ERROR] Dimensión %dx%dx%d requiere %.2f MB VRAM y excede el 90%% de VRAM libre (%.2f MB).\n",
+                M, N, K, (double)total_vram / (1024.0 * 1024.0),
+                (double)free_vram / (1024.0 * 1024.0));
+        exit(EXIT_FAILURE);
+    }
 
     printf("\n>>> Evaluando GEMM FP32: M=%d, N=%d, K=%d (VRAM total búferes: %.2f MB)\n",
            M, N, K, (double)total_vram / (1024.0 * 1024.0));
@@ -246,8 +371,8 @@ void benchmark_dimension(int M, int N, int K, int warmup_iters, int bench_iters,
 
     // Inicialización determinista pseudoaleatoria en [-1.0, 1.0]
     srand(42);
-    for (int i = 0; i < M * K; ++i) h_A[i] = ((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f;
-    for (int i = 0; i < K * N; ++i) h_B[i] = ((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f;
+    for (size_t i = 0; i < (size_t)M * K; ++i) h_A[i] = ((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f;
+    for (size_t i = 0; i < (size_t)K * N; ++i) h_B[i] = ((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f;
 
     // Alojamiento en Device (VRAM)
     float *d_A, *d_B, *d_C_cand, *d_C_ref;
@@ -288,7 +413,7 @@ void benchmark_dimension(int M, int N, int K, int warmup_iters, int bench_iters,
 
     CUDA_CHECK(cudaMemcpy(h_C_ref, d_C_ref, bytes_C, cudaMemcpyDeviceToHost));
 
-    strcpy(out_results[0].name, "cublasSgemm (Ref)");
+    snprintf(out_results[0].name, sizeof(out_results[0].name), "cublasSgemm (Ref)");
     out_results[0].M = M; out_results[0].N = N; out_results[0].K = K;
     out_results[0].avg_ms = avg_ms_cublas;
     out_results[0].gflops = gflops_cublas;
@@ -298,121 +423,43 @@ void benchmark_dimension(int M, int N, int K, int warmup_iters, int bench_iters,
     out_results[0].max_rel_err = 0.0f;
 
     // --------------------------------------------------------------------------
-    // 1. gemm_naive
-    // blockDim(32, 32): threadIdx.x -> row, threadIdx.y -> col
-    // gridDim: ((M + 31)/32, (N + 31)/32)
+    // 1. gemm_naive (tx -> row, ty -> col)
+    // 2. gemm_coalesced (tx -> col, ty -> row)
+    // 3. gemm_smem_tiled_16 (tile 16x16, 256 threads/block)
+    // 4. gemm_smem_tiled (tile 32x32, 1024 threads/block)
     // --------------------------------------------------------------------------
-    dim3 block_naive(32, 32);
-    dim3 grid_naive((M + 31) / 32, (N + 31) / 32);
+    dim3 block32(TILE_DIM, TILE_DIM);
+    dim3 grid_naive((M + TILE_DIM - 1) / TILE_DIM, (N + TILE_DIM - 1) / TILE_DIM);
+    dim3 grid_32((N + TILE_DIM - 1) / TILE_DIM, (M + TILE_DIM - 1) / TILE_DIM);
+    dim3 block16(TILE_DIM_16, TILE_DIM_16);
+    dim3 grid_16((N + TILE_DIM_16 - 1) / TILE_DIM_16, (M + TILE_DIM_16 - 1) / TILE_DIM_16);
 
-    for (int i = 0; i < warmup_iters; ++i) {
-        gemm_naive<<<grid_naive, block_naive>>>(d_A, d_B, d_C_cand, M, N, K);
-    }
-    CUDA_CHECK(cudaDeviceSynchronize());
+    benchmark_custom_kernel("gemm_naive", launch_naive, grid_naive, block32,
+                            d_A, d_B, d_C_cand, h_C_cand, h_C_ref,
+                            M, N, K, bytes_C, warmup_iters, bench_iters,
+                            total_flops, ev_start, ev_stop, &out_results[1]);
 
-    CUDA_CHECK(cudaEventRecord(ev_start, 0));
-    for (int i = 0; i < bench_iters; ++i) {
-        gemm_naive<<<grid_naive, block_naive>>>(d_A, d_B, d_C_cand, M, N, K);
-    }
-    CUDA_CHECK(cudaEventRecord(ev_stop, 0));
-    CUDA_CHECK(cudaEventSynchronize(ev_stop));
+    benchmark_custom_kernel("gemm_coalesced", launch_coalesced, grid_32, block32,
+                            d_A, d_B, d_C_cand, h_C_cand, h_C_ref,
+                            M, N, K, bytes_C, warmup_iters, bench_iters,
+                            total_flops, ev_start, ev_stop, &out_results[2]);
 
-    float ms_naive = 0.0f;
-    CUDA_CHECK(cudaEventElapsedTime(&ms_naive, ev_start, ev_stop));
-    float avg_ms_naive = ms_naive / (float)bench_iters;
-    double gflops_naive = total_flops / (avg_ms_naive * 1e6);
+    benchmark_custom_kernel("gemm_smem_tiled_16", launch_smem_16, grid_16, block16,
+                            d_A, d_B, d_C_cand, h_C_cand, h_C_ref,
+                            M, N, K, bytes_C, warmup_iters, bench_iters,
+                            total_flops, ev_start, ev_stop, &out_results[3]);
 
-    CUDA_CHECK(cudaMemcpy(h_C_cand, d_C_cand, bytes_C, cudaMemcpyDeviceToHost));
-    float abs_err_naive = 0.0f, rel_err_naive = 0.0f;
-    bool ok_naive = verify_results(h_C_cand, h_C_ref, M * N, &abs_err_naive, &rel_err_naive);
+    benchmark_custom_kernel("gemm_smem_tiled", launch_smem_32, grid_32, block32,
+                            d_A, d_B, d_C_cand, h_C_cand, h_C_ref,
+                            M, N, K, bytes_C, warmup_iters, bench_iters,
+                            total_flops, ev_start, ev_stop, &out_results[4]);
 
-    strcpy(out_results[1].name, "gemm_naive");
-    out_results[1].M = M; out_results[1].N = N; out_results[1].K = K;
-    out_results[1].avg_ms = avg_ms_naive;
-    out_results[1].gflops = gflops_naive;
-    out_results[1].speedup = 1.0; // Baseline relativa
-    out_results[1].verified = ok_naive;
-    out_results[1].max_abs_err = abs_err_naive;
-    out_results[1].max_rel_err = rel_err_naive;
-
-    // --------------------------------------------------------------------------
-    // 2. gemm_coalesced
-    // blockDim(32, 32): threadIdx.x -> col, threadIdx.y -> row
-    // gridDim: ((N + 31)/32, (M + 31)/32)
-    // --------------------------------------------------------------------------
-    dim3 block_coal(32, 32);
-    dim3 grid_coal((N + 31) / 32, (M + 31) / 32);
-
-    for (int i = 0; i < warmup_iters; ++i) {
-        gemm_coalesced<<<grid_coal, block_coal>>>(d_A, d_B, d_C_cand, M, N, K);
-    }
-    CUDA_CHECK(cudaDeviceSynchronize());
-
-    CUDA_CHECK(cudaEventRecord(ev_start, 0));
-    for (int i = 0; i < bench_iters; ++i) {
-        gemm_coalesced<<<grid_coal, block_coal>>>(d_A, d_B, d_C_cand, M, N, K);
-    }
-    CUDA_CHECK(cudaEventRecord(ev_stop, 0));
-    CUDA_CHECK(cudaEventSynchronize(ev_stop));
-
-    float ms_coal = 0.0f;
-    CUDA_CHECK(cudaEventElapsedTime(&ms_coal, ev_start, ev_stop));
-    float avg_ms_coal = ms_coal / (float)bench_iters;
-    double gflops_coal = total_flops / (avg_ms_coal * 1e6);
-
-    CUDA_CHECK(cudaMemcpy(h_C_cand, d_C_cand, bytes_C, cudaMemcpyDeviceToHost));
-    float abs_err_coal = 0.0f, rel_err_coal = 0.0f;
-    bool ok_coal = verify_results(h_C_cand, h_C_ref, M * N, &abs_err_coal, &rel_err_coal);
-
-    strcpy(out_results[2].name, "gemm_coalesced");
-    out_results[2].M = M; out_results[2].N = N; out_results[2].K = K;
-    out_results[2].avg_ms = avg_ms_coal;
-    out_results[2].gflops = gflops_coal;
-    out_results[2].speedup = (double)avg_ms_naive / (double)avg_ms_coal;
-    out_results[2].verified = ok_coal;
-    out_results[2].max_abs_err = abs_err_coal;
-    out_results[2].max_rel_err = rel_err_coal;
-
-    // --------------------------------------------------------------------------
-    // 3. gemm_smem_tiled
-    // blockDim(32, 32): tile 32x32
-    // gridDim: ((N + 31)/32, (M + 31)/32)
-    // --------------------------------------------------------------------------
-    dim3 block_tile(TILE_DIM, TILE_DIM);
-    dim3 grid_tile((N + TILE_DIM - 1) / TILE_DIM, (M + TILE_DIM - 1) / TILE_DIM);
-
-    for (int i = 0; i < warmup_iters; ++i) {
-        gemm_smem_tiled<<<grid_tile, block_tile>>>(d_A, d_B, d_C_cand, M, N, K);
-    }
-    CUDA_CHECK(cudaDeviceSynchronize());
-
-    CUDA_CHECK(cudaEventRecord(ev_start, 0));
-    for (int i = 0; i < bench_iters; ++i) {
-        gemm_smem_tiled<<<grid_tile, block_tile>>>(d_A, d_B, d_C_cand, M, N, K);
-    }
-    CUDA_CHECK(cudaEventRecord(ev_stop, 0));
-    CUDA_CHECK(cudaEventSynchronize(ev_stop));
-
-    float ms_tile = 0.0f;
-    CUDA_CHECK(cudaEventElapsedTime(&ms_tile, ev_start, ev_stop));
-    float avg_ms_tile = ms_tile / (float)bench_iters;
-    double gflops_tile = total_flops / (avg_ms_tile * 1e6);
-
-    CUDA_CHECK(cudaMemcpy(h_C_cand, d_C_cand, bytes_C, cudaMemcpyDeviceToHost));
-    float abs_err_tile = 0.0f, rel_err_tile = 0.0f;
-    bool ok_tile = verify_results(h_C_cand, h_C_ref, M * N, &abs_err_tile, &rel_err_tile);
-
-    strcpy(out_results[3].name, "gemm_smem_tiled");
-    out_results[3].M = M; out_results[3].N = N; out_results[3].K = K;
-    out_results[3].avg_ms = avg_ms_tile;
-    out_results[3].gflops = gflops_tile;
-    out_results[3].speedup = (double)avg_ms_naive / (double)avg_ms_tile;
-    out_results[3].verified = ok_tile;
-    out_results[3].max_abs_err = abs_err_tile;
-    out_results[3].max_rel_err = rel_err_tile;
-
-    // Actualizar speedup de cuBLAS frente a naive
-    out_results[0].speedup = (double)avg_ms_naive / (double)avg_ms_cublas;
+    double base_ms = (double)out_results[1].avg_ms;
+    out_results[0].speedup = base_ms / (double)out_results[0].avg_ms;
+    out_results[1].speedup = 1.0;
+    out_results[2].speedup = base_ms / (double)out_results[2].avg_ms;
+    out_results[3].speedup = base_ms / (double)out_results[3].avg_ms;
+    out_results[4].speedup = base_ms / (double)out_results[4].avg_ms;
 
     // Liberación de recursos
     CUDA_CHECK(cudaEventDestroy(ev_start));
@@ -463,8 +510,16 @@ int main(int argc, char** argv) {
         }
     }
 
+    if (warmup_iters < 0 || bench_iters <= 0 || custom_dim < 0) {
+        fprintf(stderr, "[ERROR] Parámetros inválidos (warmup >= 0, iters > 0, size > 0).\n");
+        return EXIT_FAILURE;
+    }
+
     if (!smoke_mode && !full_mode && custom_dim == 0) {
         smoke_mode = true; // Por defecto modo smoke seguro
+    } else if (smoke_mode && full_mode) {
+        fprintf(stderr, "[WARN] Se especificaron --smoke y --full a la vez; priorizando --full.\n");
+        smoke_mode = false;
     }
 
     // Inicializar dispositivo CUDA
@@ -487,20 +542,20 @@ int main(int argc, char** argv) {
 
     if (custom_dim > 0) {
         dims[num_dims++] = custom_dim;
-    } else if (smoke_mode) {
-        dims[num_dims++] = 256;
     } else if (full_mode) {
         dims[num_dims++] = 1024;
         dims[num_dims++] = 2048;
+    } else if (smoke_mode) {
+        dims[num_dims++] = 256;
     }
 
-    GemmResult all_results[16];
+    GemmResult all_results[20];
     int total_runs = 0;
 
     for (int d = 0; d < num_dims; ++d) {
         int dim = dims[d];
         benchmark_dimension(dim, dim, dim, warmup_iters, bench_iters, cublas_handle, &all_results[total_runs]);
-        total_runs += 4;
+        total_runs += 5;
     }
 
     print_markdown_table(all_results, total_runs);

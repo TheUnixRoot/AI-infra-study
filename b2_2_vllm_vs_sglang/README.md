@@ -10,7 +10,7 @@ Estado: `[PREP]` completo (0 €); `[CLD]` pendiente. La GTX 1050 local no puede
 | `cloud_bootstrap.sh` | Plantilla de la VM: `sudo shutdown -h +90`, `nvidia-smi`, dos venvs (vLLM, SGLang), descarga del modelo |
 
 ```bash
-bash b2_2_vllm_vs_sglang/run_compare.sh --dry-run          # local, sin GPU
+bash b2_2_vllm_vs_sglang/run_compare.sh --dry-run          # local, sin GPU (alias: --smoke-test)
 # En Cloud-2:
 bash b2_2_vllm_vs_sglang/cloud_bootstrap.sh
 bash b2_2_vllm_vs_sglang/run_compare.sh [--engines vllm] [--force]

@@ -34,8 +34,10 @@ __device__ __forceinline__ void warp_reduce_online_combine(float &m, float &d) {
         float other_d = __shfl_down_sync(FULL_MASK, d, offset);
 
         float m_max = fmaxf(m, other_m);
-        // Reescalado de suma de exponenciales al nuevo máximo común
-        d = d * __expf(m - m_max) + other_d * __expf(other_m - m_max);
+        // Evita (-INFINITY) - (-INFINITY) = NaN cuando hay lanes inactivos (N <= 16) o entradas -inf
+        float scale_self = (d == 0.0f) ? 0.0f : __expf(m - m_max);
+        float scale_other = (other_d == 0.0f) ? 0.0f : __expf(other_m - m_max);
+        d = d * scale_self + other_d * scale_other;
         m = m_max;
     }
 }
@@ -78,8 +80,8 @@ __global__ void online_softmax_warp_kernel(const float* __restrict__ X,
     int row = warp_id_global;
     if (row >= M) return;
 
-    const float* row_in = X + row * N;
-    float* row_out = Y + row * N;
+    const float* row_in = X + (size_t)row * (size_t)N;
+    float* row_out = Y + (size_t)row * (size_t)N;
 
     // Estado online local al hilo: (m: máximo actual, d: denominador actual)
     float m = -INFINITY;
@@ -123,8 +125,8 @@ __global__ void standard_3pass_softmax_warp_kernel(const float* __restrict__ X,
     int row = warp_id_global;
     if (row >= M) return;
 
-    const float* row_in = X + row * N;
-    float* row_out = Y + row * N;
+    const float* row_in = X + (size_t)row * (size_t)N;
+    float* row_out = Y + (size_t)row * (size_t)N;
 
     // Pasada 1: Máximo de la fila
     float local_max = -INFINITY;
@@ -232,6 +234,11 @@ int main(int argc, char** argv) {
         }
     }
 
+    if (M <= 0 || N <= 0 || warmup_iters < 0 || bench_iters <= 0) {
+        fprintf(stderr, "[ERROR] Parámetros inválidos (rows > 0, cols > 0, warmup >= 0, iters > 0).\n");
+        return EXIT_FAILURE;
+    }
+
     int dev_id = 0;
     cudaDeviceProp prop;
     CUDA_CHECK(cudaGetDeviceProperties(&prop, dev_id));
@@ -247,6 +254,13 @@ int main(int argc, char** argv) {
 
     size_t num_elements = (size_t)M * N;
     size_t bytes = num_elements * sizeof(float);
+
+    size_t free_vram = 0, total_gpu_vram = 0;
+    CUDA_CHECK(cudaMemGetInfo(&free_vram, &total_gpu_vram));
+    if (3 * bytes > (size_t)((double)free_vram * 0.90)) {
+        fprintf(stderr, "[FATAL ERROR] Dimensión %dx%d excede el 90%% de la VRAM libre.\n", M, N);
+        return EXIT_FAILURE;
+    }
 
     // Host buffers
     float* h_X = (float*)malloc(bytes);
@@ -290,12 +304,14 @@ int main(int argc, char** argv) {
     for (int i = 0; i < warmup_iters; ++i) {
         standard_3pass_softmax_warp_kernel<<<num_blocks, threads_per_block>>>(d_X, d_Y_3pass, M, N);
     }
+    CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 
     CUDA_CHECK(cudaEventRecord(ev_start, 0));
     for (int i = 0; i < bench_iters; ++i) {
         standard_3pass_softmax_warp_kernel<<<num_blocks, threads_per_block>>>(d_X, d_Y_3pass, M, N);
     }
+    CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaEventRecord(ev_stop, 0));
     CUDA_CHECK(cudaEventSynchronize(ev_stop));
 
@@ -309,12 +325,14 @@ int main(int argc, char** argv) {
     for (int i = 0; i < warmup_iters; ++i) {
         online_softmax_warp_kernel<<<num_blocks, threads_per_block>>>(d_X, d_Y_online, M, N);
     }
+    CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 
     CUDA_CHECK(cudaEventRecord(ev_start, 0));
     for (int i = 0; i < bench_iters; ++i) {
         online_softmax_warp_kernel<<<num_blocks, threads_per_block>>>(d_X, d_Y_online, M, N);
     }
+    CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaEventRecord(ev_stop, 0));
     CUDA_CHECK(cudaEventSynchronize(ev_stop));
 

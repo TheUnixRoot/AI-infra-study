@@ -34,8 +34,9 @@ Opciones:
   --num-ops N          Número de operaciones element-wise diminutas para Antipatrón C (por defecto: 200).
   --iterations N       Número de iteraciones cronometradas (por defecto: 20).
   --warmup N           Número de iteraciones de warmup (por defecto: 5).
-  --output PATH        Ruta personalizada para el JSON de resumen (por defecto: ./artifacts/b1_3_summary.json).
-  --force-simulation   Fuerza la ejecución en modo modelo de hardware sin invocar nsys/CUDA.
+  --cpu-work-ms MS     Trabajo CPU sintético por paso en ms (por defecto: 0.0).
+  --output PATH        Ruta personalizada para el JSON de resumen (por defecto: ../artifacts/b1_3_summary.json).
+  --check-only         Verifica entorno/argumentos en CPU sin requerir CUDA ni escribir en artifacts/.
   -h, --help           Muestra este mensaje de ayuda.
 
 Salidas:
@@ -45,13 +46,52 @@ Salidas:
 EOF
 }
 
-# 1. Parse help flag early
+# 1. Parse flags (extract --mode, --output, --check-only cleanly so passthrough args never override them)
+REQ_MODE="all"
+CHECK_ONLY=0
+TARGET_SUMMARY="${SUMMARY_FILE}"
+PASS_ARGS=""
+expect_val=""
 for arg in "$@"; do
-    if [ "${arg}" = "-h" ] || [ "${arg}" = "--help" ]; then
-        show_help
-        exit 0
+    if [ -n "${expect_val}" ]; then
+        case "${expect_val}" in
+            mode) REQ_MODE="${arg}" ;;
+            output) TARGET_SUMMARY="${arg}" ;;
+        esac
+        expect_val=""
+        continue
     fi
+    case "${arg}" in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        --mode)
+            expect_val="mode"
+            ;;
+        --mode=*)
+            REQ_MODE="${arg#--mode=}"
+            ;;
+        --output)
+            expect_val="output"
+            ;;
+        --output=*)
+            TARGET_SUMMARY="${arg#--output=}"
+            ;;
+        --check-only)
+            CHECK_ONLY=1
+            PASS_ARGS="${PASS_ARGS} --check-only"
+            ;;
+        *)
+            PASS_ARGS="${PASS_ARGS} ${arg}"
+            ;;
+    esac
 done
+if [ -n "${expect_val}" ]; then
+    echo "[ERROR] Falta valor para --${expect_val}." >&2
+    exit 2
+fi
+SUMMARY_FILE="${TARGET_SUMMARY}"
 
 print_header
 
@@ -146,55 +186,70 @@ case "${CUDA_DIAG}" in
         echo "[INFO] PyTorch presente pero sin aceleración CUDA en este entorno."
         ;;
     NO_TORCH:*)
-        echo "[INFO] PyTorch no instalado en este entorno. Usando emulador de hardware Pascal."
+        echo "[INFO] PyTorch no instalado en este entorno (sin aceleración GPU; no se fabrican métricas)."
         ;;
     *)
         echo "[INFO] Diagnóstico de hardware: ${CUDA_DIAG}"
         ;;
 esac
 
-# 7. Ejecución con nsys real vs Emulación Arquitectural
+# 7. Ejecución real con CUDA / nsys (sin simulación ni fabricación de datos)
 START_TIME=$(date +%s)
 
-FORCE_SIM=0
-for arg in "$@"; do
-    if [ "${arg}" = "--force-simulation" ]; then
-        FORCE_SIM=1
-    fi
-done
+if [ "${CHECK_ONLY}" -eq 1 ]; then
+    # shellcheck disable=SC2086
+    "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode "${REQ_MODE}" --output "${SUMMARY_FILE}" ${PASS_ARGS}
+    exit 0
+fi
+
+if [ "${CUDA_READY}" != "true" ]; then
+    echo "------------------------------------------------------------------------------" >&2
+    echo "[ERROR] CUDA no está disponible en este entorno. B1.3 no fabrica datos simulados (AGENTS.md §5.1)." >&2
+    echo "        Los artefactos existentes en ${ARTIFACTS_DIR} se mantienen intactos." >&2
+    echo "        Usa '--check-only' para validar dependencias sin GPU." >&2
+    echo "------------------------------------------------------------------------------" >&2
+    exit 1
+fi
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) NSYS_TRACE="cuda,nvtx" ;;   # osrt es solo Linux
     *) NSYS_TRACE="cuda,nvtx,osrt" ;;
 esac
 
-if [ -n "${NSYS_BIN}" ] && [ "${CUDA_READY}" = "true" ] && [ "${FORCE_SIM}" -eq 0 ]; then
-    echo "------------------------------------------------------------------------------"
-    echo "[EXEC] Ejecutando nsys profile sobre MODO BAD..."
-    echo "------------------------------------------------------------------------------"
-    "${NSYS_BIN}" profile \
-        --trace="${NSYS_TRACE}" \
-        --stats=true \
-        --force-overwrite=true \
-        -o "${ARTIFACTS_DIR}/b1_3_bad" \
-        "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode bad --output "${SUMMARY_FILE}" "$@" || echo "[AVISO] nsys termino con error en modo BAD."
-    [ -f "${ARTIFACTS_DIR}/b1_3_bad.nsys-rep" ] || echo "[AVISO] No se genero b1_3_bad.nsys-rep (nsys fallo; en WSL2 no identifica la GPU: usa nsys nativo de Windows o Linux). Sin traza real no hay nsys stats."
+if [ -n "${NSYS_BIN}" ]; then
+    if [ "${REQ_MODE}" = "bad" ] || [ "${REQ_MODE}" = "all" ]; then
+        echo "------------------------------------------------------------------------------"
+        echo "[EXEC] Ejecutando nsys profile sobre MODO BAD..."
+        echo "------------------------------------------------------------------------------"
+        # shellcheck disable=SC2086
+        "${NSYS_BIN}" profile \
+            --trace="${NSYS_TRACE}" \
+            --stats=true \
+            --force-overwrite=true \
+            -o "${ARTIFACTS_DIR}/b1_3_bad" \
+            "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode bad --output "${SUMMARY_FILE}" ${PASS_ARGS} || echo "[AVISO] nsys termino con error en modo BAD."
+        [ -f "${ARTIFACTS_DIR}/b1_3_bad.nsys-rep" ] || echo "[AVISO] No se genero b1_3_bad.nsys-rep (nsys fallo; en WSL2 no identifica la GPU: usa nsys nativo de Windows o Linux). Sin traza real no hay nsys stats."
+    fi
+
+    if [ "${REQ_MODE}" = "opt" ] || [ "${REQ_MODE}" = "all" ]; then
+        echo "------------------------------------------------------------------------------"
+        echo "[EXEC] Ejecutando nsys profile sobre MODO OPT..."
+        echo "------------------------------------------------------------------------------"
+        # shellcheck disable=SC2086
+        "${NSYS_BIN}" profile \
+            --trace="${NSYS_TRACE}" \
+            --stats=true \
+            --force-overwrite=true \
+            -o "${ARTIFACTS_DIR}/b1_3_opt" \
+            "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode opt --output "${SUMMARY_FILE}" ${PASS_ARGS} || echo "[AVISO] nsys termino con error en modo OPT."
+        [ -f "${ARTIFACTS_DIR}/b1_3_opt.nsys-rep" ] || echo "[AVISO] No se genero b1_3_opt.nsys-rep (nsys fallo; en WSL2 no identifica la GPU: usa nsys nativo de Windows o Linux). Sin traza real no hay nsys stats."
+    fi
 
     echo "------------------------------------------------------------------------------"
-    echo "[EXEC] Ejecutando nsys profile sobre MODO OPT..."
+    echo "[EXEC] Generando consolidado (${REQ_MODE})..."
     echo "------------------------------------------------------------------------------"
-    "${NSYS_BIN}" profile \
-        --trace="${NSYS_TRACE}" \
-        --stats=true \
-        --force-overwrite=true \
-        -o "${ARTIFACTS_DIR}/b1_3_opt" \
-        "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode opt --output "${SUMMARY_FILE}" "$@" || echo "[AVISO] nsys termino con error en modo OPT."
-    [ -f "${ARTIFACTS_DIR}/b1_3_opt.nsys-rep" ] || echo "[AVISO] No se genero b1_3_opt.nsys-rep (nsys fallo; en WSL2 no identifica la GPU: usa nsys nativo de Windows o Linux). Sin traza real no hay nsys stats."
-
-    echo "------------------------------------------------------------------------------"
-    echo "[EXEC] Generando consolidado y tablas estadísticas cuda_api_sum / cuda_gpu_kern_sum..."
-    echo "------------------------------------------------------------------------------"
-    "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode all --output "${SUMMARY_FILE}" "$@"
+    # shellcheck disable=SC2086
+    "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode "${REQ_MODE}" --output "${SUMMARY_FILE}" ${PASS_ARGS}
 
 else
     echo "------------------------------------------------------------------------------"
@@ -202,11 +257,12 @@ else
     echo "        Instala Nsight Systems para obtener nsys stats (cuda_api_sum / cuda_gpu_kern_sum)."
     echo "------------------------------------------------------------------------------"
 
-    "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode all --output "${SUMMARY_FILE}" "$@"
+    # shellcheck disable=SC2086
+    "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --mode "${REQ_MODE}" --output "${SUMMARY_FILE}" ${PASS_ARGS}
 fi
 
 # 8. Evaluación de Linux perf si está disponible y habilitado
-if [ -n "${PERF_BIN}" ] && [ "${FORCE_SIM}" -eq 0 ]; then
+if [ -n "${PERF_BIN}" ]; then
     echo "[INFO] Capturando contadores de hardware de CPU con Linux perf..."
     "${PERF_BIN}" stat -e cycles,instructions,cache-misses,page-faults,context-switches \
         "${PYTHON_BIN}" "${PYTHON_SCRIPT}" --smoke-test --quiet 2>"${ARTIFACTS_DIR}/b1_3_perf_stat.txt" || true
@@ -229,16 +285,25 @@ echo "  - Resumen JSON:         ${SUMMARY_FILE}"
 echo "=============================================================================="
 
 # 9. Verificación de integridad del JSON
-if [ -f "${SUMMARY_FILE}" ]; then
-    "${PYTHON_BIN}" -c '
+OUT_JSON="${SUMMARY_FILE}"
+if [ "${REQ_MODE}" != "all" ]; then
+    OUT_JSON="$(printf '%s' "${SUMMARY_FILE}" | sed "s/\\.json$/_${REQ_MODE}.json/")"
+fi
+if [ -f "${OUT_JSON}" ]; then
+    if [ "${REQ_MODE}" = "all" ]; then
+        "${PYTHON_BIN}" -c '
 import json, sys
 with open(sys.argv[1], "r") as f:
     d = json.load(f)
 speedup = d["speedup_metrics"]["step_time_speedup_x"]
 launches_red = d["speedup_metrics"]["kernel_launch_reduction_x"]
 print(f"[VERIFICACIÓN] JSON válido. Speedup de Paso: {speedup}x | Reducción de Kernels: {launches_red}x")
-' "${SUMMARY_FILE}"
+' "${OUT_JSON}"
+    else
+        "${PYTHON_BIN}" -c "import json,sys; json.load(open(sys.argv[1]))" "${OUT_JSON}"
+        echo "[VERIFICACIÓN] JSON válido para modo ${REQ_MODE}: ${OUT_JSON}"
+    fi
 else
-    echo "[ERROR] El archivo de resumen ${SUMMARY_FILE} no fue generado." >&2
+    echo "[ERROR] El archivo de resumen ${OUT_JSON} no fue generado." >&2
     exit 1
 fi

@@ -17,6 +17,27 @@ mkdir -p "${ARTIFACTS_DIR}"
 REPORT_JSON="${ARTIFACTS_DIR}/b2_1_kv_report.json"
 REPORT_CSV="${ARTIFACTS_DIR}/b2_1_kv_report.csv"
 
+SMOKE_ONLY=0
+for arg in "$@"; do
+    case "${arg}" in
+        --smoke|--smoke-test) SMOKE_ONLY=1 ;;
+        -h|--help)
+            cat << EOF
+Uso: $0 [--smoke-test] [-h|--help]
+
+Opciones:
+  --smoke, --smoke-test  Ejecuta solo el smoke-test offline (<5s) sin regenerar artifacts/.
+  -h, --help             Muestra esta ayuda.
+EOF
+            exit 0
+            ;;
+        *)
+            echo "[ERROR] Argumento no reconocido: ${arg}" >&2
+            exit 2
+            ;;
+    esac
+done
+
 echo "======================================================================"
 echo " [B2.1] KV-Cache Arithmetic & VRAM Budgeting Experiment Runner"
 echo " Workspace: ${SCRIPT_DIR}"
@@ -55,6 +76,11 @@ END_SMOKE=$(date +%s)
 SMOKE_DURATION=$((END_SMOKE - START_SMOKE))
 echo "  ✓ Smoke-test completed cleanly in ${SMOKE_DURATION}s."
 
+if [[ "${SMOKE_ONLY}" == 1 ]]; then
+    echo "======================================================================"
+    exit 0
+fi
+
 # ------------------------------------------------------------------------------
 # 3. Full Benchmark Matrix Execution
 # ------------------------------------------------------------------------------
@@ -76,7 +102,16 @@ echo ""
 # 4. Output Summary & Verification
 # ------------------------------------------------------------------------------
 echo ""
-echo "[4/4] Artifacts successfully generated:"
+echo "[4/4] Verifying and summarizing generated artifacts..."
+"${PYTHON_BIN}" - "${REPORT_JSON}" "${REPORT_CSV}" <<'PYEOF'
+import csv, json, sys
+with open(sys.argv[1], encoding="utf-8") as f:
+    data = json.load(f)
+assert len(data.get("results", [])) == 3, "Expected 3 model results in JSON"
+with open(sys.argv[2], encoding="utf-8") as f:
+    rows = list(csv.reader(f))
+assert len(rows) == 10, f"Expected header + 9 rows in CSV, got {len(rows)}"
+PYEOF
 echo "  ✓ JSON Report: ${REPORT_JSON}"
 echo "  ✓ CSV Report:  ${REPORT_CSV}"
 echo "======================================================================"

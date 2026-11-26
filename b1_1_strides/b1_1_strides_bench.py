@@ -10,11 +10,12 @@ This benchmark quantifies the architectural difference between:
   (b) Physical VRAM copy and rearrangement: x.transpose(0, 1).contiguous()
 
 Systems Engineering Highlights:
-  - Tensor Size: 2048 x 2048 FP32 = 16.0 MiB (< 64 MB OOM threshold for 2GB VRAM).
+  - Tensor Size: 2048 x 2048 FP32 = 16.0 MiB (< 64.0 MiB OOM threshold for 2GB VRAM).
   - L2 Cache Impact: GTX 1050 has 1024 KB (1 MB) L2 cache. At 16 MiB, memory traffic
     guarantees DRAM bus saturation rather than L2 cache residency.
   - Measurement: Hardware CUDA Events with explicit stream synchronization.
-  - Robustness: Graceful fallback and smoke-test support if CUDA is unavailable.
+  - Robustness: Graceful CPU stride verification and smoke-test support if CUDA is unavailable,
+    never generating synthetic GPU timings (AGENTS.md §5.1).
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ import math
 import os
 import sys
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # Detect PyTorch
@@ -40,7 +42,8 @@ except ImportError:
 THEORETICAL_PEAK_BW_GB_S = 112.0  # NVIDIA GeForce GTX 1050 (128-bit GDDR5 @ ~7 Gbps)
 TARGET_GPU_NAME = "NVIDIA GeForce GTX 1050"
 TARGET_ARCH = "sm_61 (Pascal GP107)"
-MAX_VRAM_SAFE_MB = 64.0
+MAX_VRAM_SAFE_MIB = 64.0
+DEFAULT_OUTPUT_PATH = str(Path(__file__).resolve().parent.parent / "artifacts" / "b1_1_metrics.json")
 
 
 class BenchmarkResult:
@@ -169,14 +172,16 @@ def run_cuda_benchmark(size: int, warmup_iters: int, bench_iters: int) -> Benchm
 
     for _ in range(bench_iters):
         t0 = time.perf_counter_ns()
-        start_event.record()
         y_tmp = x.transpose(0, 1)
-        end_event.record()
-        torch.cuda.synchronize()
         t1 = time.perf_counter_ns()
 
+        start_event.record()
+        _ = y_tmp
+        end_event.record()
+        torch.cuda.synchronize()
+
         y_gpu_samples.append(start_event.elapsed_time(end_event))
-        y_cpu_samples.append((t1 - t0) / 1000.0)  # microseconds
+        y_cpu_samples.append((t1 - t0) / 1000.0)  # pure CPU metadata dispatch (us)
 
     res.y_gpu_time_ms = compute_stats(y_gpu_samples)
     res.y_cpu_time_us = compute_stats(y_cpu_samples)
@@ -249,15 +254,17 @@ def run_cuda_benchmark(size: int, warmup_iters: int, bench_iters: int) -> Benchm
     return res
 
 
-def run_cpu_or_simulation_benchmark(size: int, warmup_iters: int, bench_iters: int) -> BenchmarkResult:
+def run_cpu_verification(size: int, warmup_iters: int, bench_iters: int) -> BenchmarkResult:
     """
     Fallback execution when CUDA is not present.
-    Executes real stride and pointer logic on CPU (using PyTorch CPU or pure-Python Mock),
-    and models GTX 1050 Pascal memory architecture expectations.
+    Verifies real stride and pointer invariants on CPU (using PyTorch CPU or pure-Python
+    metadata layout), without fabricating GPU timings (AGENTS.md §5.1).
     """
     res = BenchmarkResult()
     res.cuda_available = False
-    res.is_simulation = True
+    res.is_simulation = False
+    res.device_name = "CPU (No CUDA)"
+    res.compute_cap = "N/A"
     res.dim_n = size
     res.num_elements = size * size
     res.tensor_bytes = res.num_elements * 4
@@ -266,19 +273,22 @@ def run_cpu_or_simulation_benchmark(size: int, warmup_iters: int, bench_iters: i
     res.bench_iters = bench_iters
 
     if TORCH_AVAILABLE:
-        print("[NOTICE] PyTorch detected but CUDA is unavailable. Running CPU stride verification...")
+        print("[NOTICE] PyTorch detected but CUDA is unavailable. Running CPU stride verification (no GPU timings generated)...")
         x = torch.randn(size, size, dtype=torch.float32, device="cpu")
         res.x_shape = tuple(x.shape)
         res.x_stride = tuple(x.stride())
         res.x_contiguous = x.is_contiguous()
         res.x_data_ptr = x.data_ptr()
 
+        t0 = time.perf_counter_ns()
         y = x.transpose(0, 1)
+        t1 = time.perf_counter_ns()
         res.y_shape = tuple(y.shape)
         res.y_stride = tuple(y.stride())
         res.y_contiguous = y.is_contiguous()
         res.y_data_ptr = y.data_ptr()
         res.y_ptr_match = (y.data_ptr() == x.data_ptr())
+        res.y_cpu_time_us = compute_stats([(t1 - t0) / 1000.0])
 
         z = y.contiguous()
         res.z_shape = tuple(z.shape)
@@ -287,57 +297,25 @@ def run_cpu_or_simulation_benchmark(size: int, warmup_iters: int, bench_iters: i
         res.z_data_ptr = z.data_ptr()
         res.z_ptr_match = (z.data_ptr() == x.data_ptr())
     else:
-        print("[NOTICE] PyTorch is not installed. Running pure-Python architectural model verification...")
-        # Pure Python simulation of PyTorch Strided Tensor metadata
+        print("[NOTICE] PyTorch is not installed. Verifying pure-Python strided metadata layout (no GPU timings generated)...")
         res.x_shape = (size, size)
         res.x_stride = (size, 1)
         res.x_contiguous = True
-        res.x_data_ptr = 0x7F1000000000
+        res.x_data_ptr = 0
 
         res.y_shape = (size, size)
         res.y_stride = (1, size)
         res.y_contiguous = False
-        res.y_data_ptr = res.x_data_ptr  # Zero-copy view shares exact pointer!
+        res.y_data_ptr = res.x_data_ptr
         res.y_ptr_match = True
 
         res.z_shape = (size, size)
         res.z_stride = (size, 1)
         res.z_contiguous = True
-        res.z_data_ptr = 0x7F1001000000  # New physical allocation
+        res.z_data_ptr = 1
         res.z_ptr_match = False
 
     res.z_traffic_bytes = 2 * res.tensor_bytes
-
-    # Projected/Simulated timings for NVIDIA GTX 1050 (sm_61 GP107, 112 GB/s theoretical)
-    # Typical transpose copy kernel on Pascal achieves ~60-70 GB/s due to strided DRAM access
-    simulated_contiguous_ms = 0.495  # ~67.8 GB/s
-    res.y_gpu_time_ms = {"mean": 0.0001, "median": 0.0001, "min": 0.0001, "max": 0.0002, "std": 0.00002}
-    res.y_cpu_time_us = {"mean": 2.40, "median": 2.30, "min": 1.80, "max": 4.10, "std": 0.35}
-
-    res.z_gpu_time_ms = {
-        "mean": simulated_contiguous_ms,
-        "median": simulated_contiguous_ms,
-        "min": simulated_contiguous_ms * 0.96,
-        "max": simulated_contiguous_ms * 1.05,
-        "std": 0.015,
-    }
-
-    mean_time_s = res.z_gpu_time_ms["mean"] / 1000.0
-    min_time_s = res.z_gpu_time_ms["min"] / 1000.0
-
-    mean_bw_gb_s = res.z_traffic_bytes / (mean_time_s * 1e9)
-    peak_bw_gb_s = res.z_traffic_bytes / (min_time_s * 1e9)
-
-    mean_bw_gib_s = res.z_traffic_bytes / (mean_time_s * (1024**3))
-    peak_bw_gib_s = res.z_traffic_bytes / (min_time_s * (1024**3))
-
-    res.effective_bw_gb_s = {"mean": mean_bw_gb_s, "peak": peak_bw_gb_s}
-    res.effective_bw_gib_s = {"mean": mean_bw_gib_s, "peak": peak_bw_gib_s}
-    res.bus_saturation_pct = {
-        "mean": (mean_bw_gb_s / THEORETICAL_PEAK_BW_GB_S) * 100.0,
-        "peak": (peak_bw_gb_s / THEORETICAL_PEAK_BW_GB_S) * 100.0,
-    }
-
     return res
 
 
@@ -347,7 +325,7 @@ def print_summary_table(res: BenchmarkResult) -> None:
     sep_double = "=" * term_width
     sep_single = "-" * term_width
 
-    exec_status = "CUDA HARDWARE [NATIVE]" if res.cuda_available else "SIMULATION / CPU FALLBACK"
+    exec_status = "CUDA HARDWARE [NATIVE]" if res.cuda_available else "CPU VERIFICATION (NO CUDA)"
 
     print("\n" + sep_double)
     print("                 GPU SYSTEMS BENCHMARK B1.1: STRIDES & MEMORY LAYOUT")
@@ -357,7 +335,7 @@ def print_summary_table(res: BenchmarkResult) -> None:
     print(f" Active Device     : {res.device_name} (Capability: {res.compute_cap})")
     print(f" PyTorch Version   : {res.pytorch_version}")
     print(f" Matrix Dimension  : {res.dim_n}x{res.dim_n} | Dtype: {res.dtype_str} (4 B/elem) | Elements: {res.num_elements:,}")
-    print(f" Tensor Memory     : {res.tensor_mb:.2f} MiB ({res.tensor_bytes / 1e6:.2f} MB) [Threshold < {MAX_VRAM_SAFE_MB} MB: SAFE]")
+    print(f" Tensor Memory     : {res.tensor_mb:.2f} MiB ({res.tensor_bytes / 1e6:.2f} MB) [Threshold < {MAX_VRAM_SAFE_MIB} MiB: SAFE]")
     print(f" Profile Setup     : {res.warmup_iters} warmup iterations | {res.bench_iters} timed loops (cudaEventSynchronize)")
     print(sep_single)
     
@@ -372,16 +350,21 @@ def print_summary_table(res: BenchmarkResult) -> None:
     # Transpose Row
     t_shape_stride = f"{res.y_shape} {res.y_stride}"
     t_ptr_str = "MATCH (0-copy)" if res.y_ptr_match else "MISMATCH"
-    t_lat_str = f"{res.y_gpu_time_ms['mean']:.4f} ms" if res.cuda_available else "~0.000 ms"
+    t_lat_str = f"{res.y_gpu_time_ms['mean']:.4f} ms" if res.cuda_available else "N/A (No CUDA)"
     print(f"{'y = x.transpose(0,1)':<24} | {t_shape_stride:<22} | {'NO':<7} | {t_ptr_str:<12} | {'0 B':<10} | {t_lat_str:<12} | {'N/A (Metadata)':<14} | {'0.0%':<8}")
 
     # Contiguous Row
     c_shape_stride = f"{res.z_shape} {res.z_stride}"
     c_ptr_str = "NEW ALLOC" if not res.z_ptr_match else "OVERWRITE"
-    c_lat_str = f"{res.z_gpu_time_ms['mean']:.4f} ms"
     traffic_mb_str = f"{res.z_traffic_bytes / 1e6:.2f} MB"
-    bw_str = f"{res.effective_bw_gb_s['mean']:.2f} GB/s"
-    sat_str = f"{res.bus_saturation_pct['mean']:.1f}%"
+    if res.cuda_available and res.z_gpu_time_ms:
+        c_lat_str = f"{res.z_gpu_time_ms['mean']:.4f} ms"
+        bw_str = f"{res.effective_bw_gb_s['mean']:.2f} GB/s"
+        sat_str = f"{res.bus_saturation_pct['mean']:.1f}%"
+    else:
+        c_lat_str = "N/A (No CUDA)"
+        bw_str = "N/A"
+        sat_str = "N/A"
     print(f"{'z = y.contiguous()':<24} | {c_shape_stride:<22} | {'YES':<7} | {c_ptr_str:<12} | {traffic_mb_str:<10} | {c_lat_str:<12} | {bw_str:<14} | {sat_str:<8}")
     if res.clone_bw_gb_s is not None:
         cl_pct = res.clone_bw_gb_s / THEORETICAL_PEAK_BW_GB_S * 100.0
@@ -391,13 +374,19 @@ def print_summary_table(res: BenchmarkResult) -> None:
 
     # Engineering Analysis Notes
     print(" Systems Engineering Analysis:")
-    print("  1. Transpose: Zero-copy metadata mutation. Shape & stride change (2048, 1) -> (1, 2048).")
+    print(f"  1. Transpose: Zero-copy metadata mutation. Stride changes {res.x_stride} -> {res.y_stride}.")
     print(f"     Storage pointer is identical: &y[0,0] == &x[0,0] ({res.y_ptr_match}). Memory traffic = 0 Bytes.")
-    print("  2. Contiguous: Physical DRAM transfer. Re-strides memory back to (2048, 1) row-major.")
-    print(f"     DRAM traffic = Read ({res.tensor_mb:.1f} MB) + Write ({res.tensor_mb:.1f} MB) = {res.z_traffic_bytes / 1e6:.2f} MB ({res.z_traffic_bytes / (1024*1024):.1f} MiB).")
-    print(f"     Achieved Bandwidth: {res.effective_bw_gb_s['mean']:.2f} GB/s (Peak: {res.effective_bw_gb_s['peak']:.2f} GB/s) "
-          f"vs Theoretical Peak: {THEORETICAL_PEAK_BW_GB_S} GB/s ({res.bus_saturation_pct['mean']:.1f}% bus saturation).")
-    print(f"  3. Cache Behavior: Tensor size ({res.tensor_mb:.1f} MiB) >> GTX 1050 L2 Cache (1.0 MiB), guaranteeing true DRAM bus testing.")
+    print(f"  2. Contiguous: Physical DRAM transfer. Re-strides memory back to {res.z_stride} row-major.")
+    print(f"     DRAM traffic = Read ({res.tensor_bytes / 1e6:.2f} MB) + Write ({res.tensor_bytes / 1e6:.2f} MB) = {res.z_traffic_bytes / 1e6:.2f} MB ({res.z_traffic_bytes / (1024*1024):.1f} MiB).")
+    if res.cuda_available and res.effective_bw_gb_s:
+        print(f"     Achieved Bandwidth: {res.effective_bw_gb_s['mean']:.2f} GB/s (Peak: {res.effective_bw_gb_s['peak']:.2f} GB/s) "
+              f"vs Theoretical Peak: {THEORETICAL_PEAK_BW_GB_S} GB/s ({res.bus_saturation_pct['mean']:.1f}% bus saturation).")
+    else:
+        print("     GPU timings skipped (CUDA unavailable; no simulated metrics generated).")
+    if res.tensor_mb > 1.0:
+        print(f"  3. Cache Behavior: Tensor size ({res.tensor_mb:.1f} MiB) > GTX 1050 L2 Cache (1.0 MiB), forcing DRAM bus traffic.")
+    else:
+        print(f"  3. Cache Behavior: Tensor size ({res.tensor_mb:.1f} MiB) <= GTX 1050 L2 Cache (1.0 MiB); use --size 2048 (16.0 MiB) to saturate DRAM.")
     print(sep_double + "\n")
 
 
@@ -434,8 +423,8 @@ def export_metrics_json(res: BenchmarkResult, output_path: str) -> None:
             "num_elements": res.num_elements,
             "tensor_bytes": res.tensor_bytes,
             "tensor_size_mib": res.tensor_mb,
-            "max_safe_vram_mb": MAX_VRAM_SAFE_MB,
-            "oom_safe": res.tensor_mb < MAX_VRAM_SAFE_MB,
+            "max_safe_vram_mib": MAX_VRAM_SAFE_MIB,
+            "oom_safe": res.tensor_mb < MAX_VRAM_SAFE_MIB,
         },
         "operations": {
             "transpose": {
@@ -485,12 +474,14 @@ def export_metrics_json(res: BenchmarkResult, output_path: str) -> None:
         "summary": {
             "transpose_is_zero_copy": res.y_ptr_match,
             "contiguous_allocates_physical_memory": not res.z_ptr_match,
-            "effective_bandwidth_gb_s": res.effective_bw_gb_s["mean"],
-            "bus_saturation_pct": res.bus_saturation_pct["mean"],
+            "effective_bandwidth_gb_s": res.effective_bw_gb_s.get("mean"),
+            "bus_saturation_pct": res.bus_saturation_pct.get("mean"),
             "clone_baseline_gpu_time_ms": res.clone_gpu_time_ms,
             "clone_baseline_bandwidth_gb_s": res.clone_bw_gb_s,
             "transpose_copy_vs_clone_slowdown_x": (
-                res.z_gpu_time_ms["mean"] / res.clone_gpu_time_ms if res.clone_gpu_time_ms else None
+                res.z_gpu_time_ms["mean"] / res.clone_gpu_time_ms
+                if (res.clone_gpu_time_ms and res.z_gpu_time_ms.get("mean") is not None)
+                else None
             ),
         },
     }
@@ -501,6 +492,19 @@ def export_metrics_json(res: BenchmarkResult, output_path: str) -> None:
     print(f"[ARTIFACT] Metrics successfully exported to: {output_path}")
 
 
+def resolve_run_config(
+    smoke_test: bool,
+    size: Optional[int],
+    warmup: int,
+    iterations: int,
+) -> Tuple[int, int, int]:
+    """Resolve effective (size, warmup, iterations), honoring --smoke-test defaults."""
+    eff_size = size if size is not None else (512 if smoke_test else 2048)
+    eff_warmup = 5 if smoke_test else warmup
+    eff_iters = 10 if smoke_test else iterations
+    return eff_size, eff_warmup, eff_iters
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="B1.1 Strides Benchmark: Transpose vs Contiguous on GPU"
@@ -508,8 +512,8 @@ def main() -> int:
     parser.add_argument(
         "--size",
         type=int,
-        default=2048,
-        help="Matrix dimension N (N x N FP32 matrix, default: 2048)",
+        default=None,
+        help="Matrix dimension N (N x N FP32 matrix, default: 2048, or 512 in --smoke-test)",
     )
     parser.add_argument(
         "--warmup",
@@ -526,40 +530,44 @@ def main() -> int:
     parser.add_argument(
         "--output",
         type=str,
-        default="./artifacts/b1_1_metrics.json",
+        default=DEFAULT_OUTPUT_PATH,
         help="Path to output JSON metrics artifact",
     )
     parser.add_argument(
         "--smoke-test",
         action="store_true",
-        help="Run fast smoke-test (< 30s) with reduced iterations",
+        help="Run fast smoke-test (< 30s) with 512x512 matrix and reduced iterations",
     )
     parser.add_argument(
+        "--cpu-only",
         "--force-simulation",
+        dest="cpu_only",
         action="store_true",
-        help="Force simulation mode even if CUDA is detected",
+        help="Run CPU stride/pointer verification without CUDA (does not overwrite real GPU artifacts unless --output is set)",
     )
 
     args = parser.parse_args()
 
-    # Smoke test settings adjustment
-    warmup_iters = 5 if args.smoke_test else args.warmup
-    bench_iters = 10 if args.smoke_test else args.iterations
-    size = args.size
+    size, warmup_iters, bench_iters = resolve_run_config(
+        smoke_test=args.smoke_test,
+        size=args.size,
+        warmup=args.warmup,
+        iterations=args.iterations,
+    )
 
-    # Validate memory footprint (< 64 MB constraint)
-    mem_mb = (size * size * 4) / (1024 * 1024)
-    if mem_mb > MAX_VRAM_SAFE_MB:
+    # Validate memory footprint (< 64 MiB constraint)
+    mem_mib = (size * size * 4) / (1024 * 1024)
+    if mem_mib > MAX_VRAM_SAFE_MIB:
         print(
-            f"[ERROR] Requested tensor size {mem_mb:.2f} MiB exceeds safety threshold "
-            f"({MAX_VRAM_SAFE_MB} MiB) for 2GB VRAM target. Aborting to prevent OOM."
+            f"[ERROR] Requested tensor size {mem_mib:.2f} MiB exceeds safety threshold "
+            f"({MAX_VRAM_SAFE_MIB} MiB) for 2GB VRAM target. Aborting to prevent OOM."
         )
         return 1
 
     use_cuda = (
         TORCH_AVAILABLE
         and torch.cuda.is_available()
-        and not args.force_simulation
+        and not args.cpu_only
     )
 
     try:
@@ -567,13 +575,21 @@ def main() -> int:
             result = run_cuda_benchmark(
                 size=size, warmup_iters=warmup_iters, bench_iters=bench_iters
             )
-        else:
-            result = run_cpu_or_simulation_benchmark(
-                size=size, warmup_iters=warmup_iters, bench_iters=bench_iters
-            )
+            print_summary_table(result)
+            export_metrics_json(result, args.output)
+            return 0
 
+        result = run_cpu_verification(
+            size=size, warmup_iters=warmup_iters, bench_iters=bench_iters
+        )
         print_summary_table(result)
-        export_metrics_json(result, args.output)
+        if os.path.abspath(args.output) == os.path.abspath(DEFAULT_OUTPUT_PATH):
+            print(
+                f"[NOTICE] Skipping write to {args.output} without CUDA to preserve real GPU artifacts "
+                "(pass --output PATH to export CPU verification)."
+            )
+        else:
+            export_metrics_json(result, args.output)
         return 0
 
     except Exception as e:

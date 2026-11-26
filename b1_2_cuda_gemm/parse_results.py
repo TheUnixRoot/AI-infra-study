@@ -4,14 +4,15 @@ CSV + JSON artifacts (no placeholders: every number comes from the binaries' out
 import csv, json, re, sys, datetime
 
 def rows(path):
-    for line in open(path, encoding="utf-8", errors="replace"):
-        if line.startswith("| **"):
-            yield [c.strip().strip("*").strip() for c in line.strip().strip("|").split("|")]
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if line.startswith("| **"):
+                yield [c.strip().strip("*").strip() for c in line.strip().strip("|").split("|")]
 
 def num(s):
     return float(re.sub(r"[^0-9.eE+-]", "", s.replace("x", "")))
 
-def main(gemm_out, softmax_out, mode, gpu, driver, json_path, csv_path):
+def main(gemm_out, softmax_out, mode, gpu, driver, json_path, csv_path, arch="sm_61"):
     gemm = []
     for c in rows(gemm_out):
         m = re.search(r"err:\s*([0-9.eE+-]+)", c[5])
@@ -23,8 +24,8 @@ def main(gemm_out, softmax_out, mode, gpu, driver, json_path, csv_path):
             for c in rows(softmax_out)]
     if not gemm or not soft:
         sys.exit("[ERROR] No se pudieron parsear resultados de los binarios.")
-    with open(csv_path, "w", newline="") as f:
-        w = csv.writer(f)
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f, lineterminator="\n")
         w.writerow(["benchmark", "kernel", "dimension", "latency_ms", "throughput", "throughput_unit", "speedup", "verified"])
         for r in gemm:
             w.writerow(["gemm", r["kernel"], r["dimension"], r["latency_ms"], r["gflops"], "GFLOP/s", r["speedup_vs_naive"], r["verified"]])
@@ -33,10 +34,11 @@ def main(gemm_out, softmax_out, mode, gpu, driver, json_path, csv_path):
     with open(json_path, "w") as f:
         json.dump({"experiment": "B1.2 - CUDA C++ GEMM & Warp Online Softmax",
                    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                   "target_hardware": {"gpu": gpu, "architecture": "Pascal (sm_61)", "driver_version": driver},
+                   "target_hardware": {"gpu": gpu, "architecture": arch, "driver_version": driver},
                    "execution_mode": mode, "gemm": gemm, "softmax": soft,
                    "verification_status": "ALL_TESTS_PASSED" if all(r["verified"] for r in gemm + soft) else "FAILED"},
                   f, indent=2)
 
 if __name__ == "__main__":
-    main(*sys.argv[1:8])
+    arch_arg = sys.argv[8] if len(sys.argv) > 8 else "sm_61"
+    main(*sys.argv[1:8], arch=arch_arg)

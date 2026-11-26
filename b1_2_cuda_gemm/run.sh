@@ -67,7 +67,9 @@ for arg in "$@"; do
             exit 0
             ;;
         *)
-            echo "[WARNING] Argumento no reconocido: ${arg}"
+            echo "[ERROR] Argumento no reconocido: ${arg}" >&2
+            show_help >&2
+            exit 2
             ;;
     esac
 done
@@ -121,7 +123,7 @@ fi
 
 # 4. Compilacion de binarios con verificacion estricta
 echo ""
-echo "[2/4] Compilando kernels CUDA C++ (-arch=sm_61 -O3 -lcublas)..."
+echo "[2/4] Compilando kernels CUDA C++ (-arch=${CUDA_ARCH:-sm_61} -O3 -lcublas)..."
 
 echo "  -> Compilando gemm_bench.cu..."
 nvcc ${NVCC_FLAGS} "${SCRIPT_DIR}/gemm_bench.cu" -lcublas -o "${GEMM_BIN}"
@@ -159,7 +161,8 @@ echo ""
 echo "[INFO] Generando artefactos en ${ARTIFACTS_DIR}..."
 
 # CSV + JSON con las medidas reales parseadas de la salida de los binarios
-python3 "${SCRIPT_DIR}/parse_results.py" "${RESULTS_TMP}/gemm.out" "${RESULTS_TMP}/softmax.out"     "${MODE}" "${GPU_NAME}" "${GPU_DRIVER}" "${JSON_OUTPUT}" "${CSV_OUTPUT}"
+python3 "${SCRIPT_DIR}/parse_results.py" "${RESULTS_TMP}/gemm.out" "${RESULTS_TMP}/softmax.out" \
+    "${MODE}" "${GPU_NAME}" "${GPU_DRIVER}" "${JSON_OUTPUT}" "${CSV_OUTPUT}" "${CUDA_ARCH:-sm_61}"
 
 echo "  -> JSON generado: ${JSON_OUTPUT}"
 echo "  -> CSV generado:  ${CSV_OUTPUT}"

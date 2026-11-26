@@ -56,7 +56,7 @@ EMBEDDED_CONFIGS: Dict[str, Dict[str, Any]] = {
         "hidden_size": 7168,
         "intermediate_size": 18432,
         "kv_lora_rank": 512,
-        "max_position_embeddings": 4096,
+        "max_position_embeddings": 163840,
         "model_type": "deepseek_v3",
         "moe_intermediate_size": 2048,
         "n_routed_experts": 256,
@@ -118,8 +118,6 @@ def fetch_or_load_config(model_id_or_path: str, smoke_test: bool = False) -> Tup
     Loads config.json from local path, huggingface_hub, or embedded fallback.
     Guarantees fast offline execution.
     """
-    source_info = "embedded"
-
     # If smoke test is requested, prefer embedded verified configs directly
     canonical_key = resolve_model_key(model_id_or_path)
     if smoke_test and canonical_key:
@@ -275,20 +273,48 @@ def estimate_parameters_from_config(config: Dict[str, Any]) -> int:
     lm_head_params = 0 if tie_word_embeddings else (vocab_size * hidden_size)
 
     # Attention per layer
-    head_dim = hidden_size // num_attention_heads
-    q_proj = hidden_size * (num_attention_heads * head_dim)
-    k_proj = hidden_size * (num_key_value_heads * head_dim)
-    v_proj = hidden_size * (num_key_value_heads * head_dim)
-    o_proj = (num_attention_heads * head_dim) * hidden_size
-    attn_per_layer = q_proj + k_proj + v_proj + o_proj
-
-    # MLP per layer (SwiGLU has gate, up, down)
-    mlp_per_layer = 3 * hidden_size * intermediate_size
+    head_dim = config.get("head_dim") or config.get("kv_channels") or (hidden_size // num_attention_heads)
+    if "kv_lora_rank" in config:
+        kv_lora_rank = config.get("kv_lora_rank", 512)
+        q_lora_rank = config.get("q_lora_rank", 1536)
+        qk_nope_head_dim = config.get("qk_nope_head_dim", 128)
+        qk_rope_head_dim = config.get("qk_rope_head_dim", 64)
+        v_head_dim = config.get("v_head_dim", 128)
+        q_proj = (
+            hidden_size * q_lora_rank + q_lora_rank * num_attention_heads * (qk_nope_head_dim + qk_rope_head_dim)
+            if q_lora_rank
+            else hidden_size * num_attention_heads * (qk_nope_head_dim + qk_rope_head_dim)
+        )
+        kv_proj = (
+            hidden_size * (kv_lora_rank + qk_rope_head_dim)
+            + kv_lora_rank * num_attention_heads * (qk_nope_head_dim + v_head_dim)
+        )
+        o_proj = num_attention_heads * v_head_dim * hidden_size
+        attn_per_layer = q_proj + kv_proj + o_proj
+    else:
+        q_proj = hidden_size * (num_attention_heads * head_dim)
+        k_proj = hidden_size * (num_key_value_heads * head_dim)
+        v_proj = hidden_size * (num_key_value_heads * head_dim)
+        o_proj = (num_attention_heads * head_dim) * hidden_size
+        attn_per_layer = q_proj + k_proj + v_proj + o_proj
 
     # LayerNorms
     ln_per_layer = 4 * hidden_size
 
-    total = embedding_params + lm_head_params + num_layers * (attn_per_layer + mlp_per_layer + ln_per_layer)
+    # Dense vs MoE FFN across layers
+    n_routed = config.get("n_routed_experts", 0) or config.get("num_local_experts", 0)
+    if n_routed > 0:
+        moe_inter = config.get("moe_intermediate_size", intermediate_size)
+        n_shared = config.get("n_shared_experts", 0)
+        first_dense = min(config.get("first_k_dense_replace", 0), num_layers)
+        moe_layers = num_layers - first_dense
+        dense_mlp = 3 * hidden_size * intermediate_size
+        moe_mlp = (n_routed + n_shared) * (3 * hidden_size * moe_inter) + hidden_size * n_routed
+        mlp_total = first_dense * dense_mlp + moe_layers * moe_mlp
+    else:
+        mlp_total = num_layers * (3 * hidden_size * intermediate_size)
+
+    total = embedding_params + lm_head_params + num_layers * (attn_per_layer + ln_per_layer) + mlp_total
     return total
 
 
@@ -425,7 +451,7 @@ def export_csv(all_model_results: List[Dict[str, Any]], seq_len: int, output_pat
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, lineterminator="\n")
         writer.writerow([
             "model_name",
             "arch_type",
@@ -548,6 +574,13 @@ def main():
     for model_name in args.models:
         try:
             config, source_desc = fetch_or_load_config(model_name, smoke_test=args.smoke_test)
+            max_pos = config.get("max_position_embeddings")
+            if isinstance(max_pos, int) and max_pos > 0 and args.seq_len > max_pos:
+                print(
+                    f"[WARN] Requested --seq-len {args.seq_len} exceeds native max_position_embeddings "
+                    f"({max_pos}) for '{model_name}'.",
+                    file=sys.stderr,
+                )
             arch_info = analyze_model_architecture(config)
             combos = calculate_vram_and_concurrency(
                 arch_info=arch_info,

@@ -223,18 +223,19 @@ async def cmd_run_async(args) -> int:
     rng = random.Random(args.seed)
     conn = aiohttp.TCPConnector(limit=0)
     async with aiohttp.ClientSession(connector=conn, timeout=aiohttp.ClientTimeout(total=None)) as session:
-        print(f"[run] warmup x{args.warmup} ...", flush=True)
-        wsem = asyncio.Semaphore(min(args.warmup, 8))
+        if args.warmup > 0:
+            print(f"[run] warmup x{args.warmup} ...", flush=True)
+            wsem = asyncio.Semaphore(min(args.warmup, 8))
 
-        async def warm():
-            async with wsem:
-                return await one_request(session, f"{base}/v1/completions", args.model,
-                                         make_prompt(rng, args.input_len, args.vocab_hi, []),
-                                         args.output_len, args.timeout)
-        wres = await asyncio.gather(*(warm() for _ in range(args.warmup)))
-        if not any(r.get("ok") for r in wres):
-            print(f"[ERROR] warmup fallo: {wres[0].get('error')}", file=sys.stderr)
-            return 1
+            async def warm():
+                async with wsem:
+                    return await one_request(session, f"{base}/v1/completions", args.model,
+                                             make_prompt(rng, args.input_len, args.vocab_hi, []),
+                                             args.output_len, args.timeout)
+            wres = await asyncio.gather(*(warm() for _ in range(args.warmup)))
+            if not any(r.get("ok") for r in wres):
+                print(f"[ERROR] warmup fallo: {wres[0].get('error')}", file=sys.stderr)
+                return 1
         levels = []
         for B in args.concurrency:
             print(f"[run] {args.engine} B={B} ...", flush=True)

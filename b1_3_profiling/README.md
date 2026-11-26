@@ -28,8 +28,8 @@
             |                              ^                              |
    CPU-GPU  | CPU bloqueada esperando DMA  |                              |
             |                                                             |
-   GPU Kern | [Kernel 1] -> [Kernel 2] -> ... -> [Kernel 200]             |
-            | 200 launches independientes, DRAM roundtrips (No L2 reuse) |
+   GPU Kern | [Kernel 1] -> [Kernel 2] -> ... -> [Kernel 600]             |
+            | 200 ops x 3 kernels/op, DRAM roundtrips (No L2 reuse)      |
             |                                                             |
    Sync     | [ .item() ] ===> cudaStreamSynchronize (Pipeline Stall)     |
             | CPU y GPU completamente serializadas (Gaps gigantes en timeline)
@@ -42,8 +42,8 @@
             |                              ^                              |
    CPU-GPU  | CPU encola trabajo asíncrono sin bloquearse                |
             |                                                             |
-   GPU Kern | [ triton_poi_fused_relu_add_mul ]                           |
-            | 1 único kernel fused (torch.compile / Inductor) en registros|
+   GPU Kern | [CC >= 7.0 (B1.4): Triton fused] / [sm_61: 600 kernels]     |
+            | Fusión con torch.compile/Inductor requiere CC >= 7.0        |
             |                                                             |
    Sync     | [ loss += step_loss ] (GPU Tensor, ZERO Sync en bucle)      |
             | Sincronización diferida fuera del bucle de entrenamiento    |
@@ -62,12 +62,14 @@
   2. Emisión de la transferencia DMA por el bus PCIe de forma síncrona (`cudaMemcpy`), bloqueando el hilo de ejecución de Python.
 - **Solución**: Asignar memoria de host bloqueada en páginas físicas (`torch.empty(..., pin_memory=True)` o `.pin_memory()`) y transferir con `.to(device, non_blocking=True)`. Permite transferencias directas sobre PCIe vía `cudaMemcpyAsync` solapadas con la ejecución de kernels.
 
-### C. Antipatrón C: 200 Operaciones Element-wise Diminutas sin Fusionar
-- **Causa Raíz**: Encadenar 200 operaciones aritméticas (`x = relu(x * a + b)`) sin compilar genera 200 llamadas `cudaLaunchKernel` consecutivas (`at::native::elementwise_kernel`).
+### C. Antipatrón C: 200 Operaciones Element-wise Diminutas sin Fusionar (600 Kernels)
+- **Causa Raíz**: Encadenar 200 pasos de `x = torch.relu(x * 1.0001 + 0.0001)` en modo eager genera **3 kernels por paso** (`mul`, `add`, `clamp`/`relu`) = **600 llamadas `cudaLaunchKernel`** consecutivas.
 - **Impacto**:
-  1. *Driver Launch Overhead*: ~3.5 µs de sobrecarga por kernel $\times 200 \approx 700\text{ µs}$ de latencia CPU solo en despachos.
-  2. *Saturación de DRAM GDDR5*: Para una matriz de 16 MiB ($2048 \times 2048$ FP32), cada kernel lee 16 MiB y escribe 16 MiB. 200 kernels generan $200 \times 32\text{ MiB} \approx 6.4\text{ GB}$ de tráfico DRAM. Como la caché L2 de la GTX 1050 es de 1024 KB, se satura de inmediato y se convierte en un cuello de botella puramente de ancho de banda.
-- **Solución**: Fusión de operadores mediante `torch.compile` (PyTorch 2.x Inductor). Fusiona toda la secuencia en un único kernel (*pointwise loop*). Los valores intermedios se mantienen en los **registros de los SMs**, realizando solo 1 lectura y 1 escritura a DRAM (32 MiB totales vs 6.4 GB).
+  1. *Driver Launch Overhead*: ~3.5 µs de sobrecarga por kernel $\times 600 \approx 2.1\text{ ms}$ de despacho CPU por paso.
+  2. *Saturación de DRAM GDDR5*: Para una matriz de $16.0\text{ MiB}$ ($16.78\text{ MB}$), cada kernel lee $16.78\text{ MB}$ y escribe $16.78\text{ MB}$ ($33.55\text{ MB}$). 600 kernels generan $600 \times 33.55\text{ MB} \approx 20.1\text{ GB}$ de tráfico DRAM por paso. Como la caché L2 de la GTX 1050 es de 1024 KB, se desborda de inmediato y el cómputo queda estrictamente *memory-bandwidth bound* (~93 GB/s según `nsys`).
+- **Solución**: Fusión de operadores mediante `torch.compile` (Inductor/Triton, abordado en **B1.4** sobre GPUs con `CC >= 7.0`), manteniendo los valores intermedios en registros y realizando 1 sola lectura y 1 escritura a DRAM. En Pascal `sm_61` (`GTX 1050`), Triton no está soportado; el módulo diagnostica el cuello de botella sin simular fusión falsa.
+
+*(Nota: puedes pasar `--cpu-work-ms 5` para simular trabajo CPU por paso y observar directamente la pérdida de solapamiento causada por `.item()` en el Antipatrón A).*
 
 ---
 

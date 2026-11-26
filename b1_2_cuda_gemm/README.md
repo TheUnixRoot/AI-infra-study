@@ -13,7 +13,7 @@
 | **VRAM Total** | 2048 MB (2.0 GB) GDDR5 |
 | **Ancho de Banda Teórico** | **~112.0 GB/s** (128-bit @ ~7 Gbps) |
 | **Caché L2** | 1024 KB (1.0 MB) |
-| **Shared Memory por SM** | 48 KB / 64 KB configurable |
+| **Shared Memory** | 48 KB máx. por bloque (96 KB por SM en GP107) |
 | **Warp Size** | 32 hilos |
 | **Máximo de hilos por bloque** | 1024 hilos |
 | **Throughput Teórico FP32** | ~1.86 TFLOP/s (Boost Clock ~1455 MHz) |
@@ -29,50 +29,56 @@ En CUDA, las instrucciones de carga/escritura de memoria global DRAM son emitida
 1. **`gemm_naive` (`threadIdx.x -> row`, `threadIdx.y -> col`)**:
    - Cada hilo del warp tiene el mismo `col` y un `row` distinto:
      $$\text{address}(A[\text{row}, k]) = \text{base}_A + (\text{row} \times K + k) \times 4\text{ B}$$
-   - A medida que `threadIdx.x` varía de 0 a 31, la dirección en memoria avanza en saltos de $K \times 4\text{ bytes}$ (ej. $2048 \times 4 = 8192\text{ bytes}$).
-   - **Consecuencia**: Cada hilo requiere una línea de caché L1/L2 distinta. El Memory Controller debe emitir hasta **32 transacciones de memoria separadas**, desperdiciando >90% del bus GDDR5.
+   - A medida que `threadIdx.x` varía de 0 a 31, las direcciones de `A` y `C` avanzan en saltos de $K \times 4$ o $N \times 4\text{ bytes}$ (ej. $2048 \times 4 = 8192\text{ bytes}$), mientras que `B[k * N + col]` es idéntica para todo el warp (**broadcast**).
+   - **Consecuencia**: En `A` y `C`, cada hilo solicita un sector L2 de 32 bytes distinto para usar solo 4 bytes (**87.5% de desperdicio** del ancho de banda GDDR5 por acceso strided no coalescente).
 
 2. **`gemm_coalesced` (`threadIdx.x -> col`, `threadIdx.y -> row`)**:
    - Cada hilo del warp tiene el mismo `row` y un `col` consecutivo (`col, col+1, col+2, ...`):
      - **Matriz A**: Todos los 32 hilos leen exactamente la misma dirección $A[\text{row} \times K + k]$. El SM realiza un **broadcast en 1 ciclo** desde L1/L2 cache.
-     - **Matriz B**: Los hilos leen direcciones contiguas $B[k \times N + \text{col}]$. Los 32 accesos contiguos de 4 bytes se empaquetan en una **única transacción coalescente de 128 bytes** (sector L2).
+     - **Matriz B**: Los hilos leen direcciones contiguas $B[k \times N + \text{col}]$. Los 32 accesos contiguos de 4 bytes se empaquetan en una **línea L2 de 128 bytes (4 sectores de 32 bytes)** con 100% de eficiencia.
      - **Matriz C**: Escritura contigua y coalescente de 128 bytes.
-   - **Ganancia típica**: Speedup de **3x a 8x** sin usar memoria compartida, solo mapeando los índices correctamente a la topología del Warp.
+   - **Ganancia típica**: Speedup de **~4–5x** sin usar memoria compartida, solo mapeando los índices correctamente a la topología del Warp.
 
 ---
 
-### B. Tiling Cooperativo en Shared Memory (`gemm_smem_tiled`)
+### B. Tiling Cooperativo en Shared Memory (`gemm_smem_tiled` 32×32 y variante `gemm_smem_tiled_16` 16×16)
 
-El kernel `gemm_smem_tiled` divide la multiplicación en bloques de $32 \times 32$ floats:
-- **Búferes Compartidos**:
+El benchmark incluye dos tamaños de tile cooperativo para contrastar reutilización de datos frente a granularidad de ocupación en Pascal (`sm_61`):
+
+- **`gemm_smem_tiled` (`32x32`, 1024 hilos/bloque, 8 KB SMEM)**:
   ```cpp
   __shared__ float As[32][32]; // 4096 bytes (4 KB)
   __shared__ float Bs[32][32]; // 4096 bytes (4 KB)
   ```
-  Total por bloque: $8\text{ KB}$ de SMEM ($\ll 48\text{ KB}$ por SM), garantizando alta ocupación.
+  - **Reutilización 32x**: Cada float cargado desde DRAM se lee 32 veces desde SMEM.
+  - **Límite de ocupación**: Con 1024 hilos por bloque y tope de 2048 hilos/SM (65,536 registros/SM), caben como máximo 2 bloques/SM; si el kernel supera **32 registros/hilo**, la ocupación cae bruscamente al **50%** (1 bloque/SM) y los 32 warps del bloque se detienen a la vez en cada `__syncthreads()`.
 
-- **Factor de Reutilización Aritmética**:
-  - Cada elemento cargado desde DRAM GDDR5 a `__shared__` se lee **32 veces** desde SMEM durante la multiplicación interna.
-  - El tráfico sobre el bus global DRAM se reduce en un factor de hasta **32x**, permitiendo que el kernel alcance el límite compute-bound en vez de memory-bound.
+- **`gemm_smem_tiled_16` (`16x16`, 256 hilos/bloque, 2 KB SMEM)**:
+  ```cpp
+  __shared__ float As[16][16]; // 1024 bytes (1 KB)
+  __shared__ float Bs[16][16]; // 1024 bytes (1 KB)
+  ```
+  - **Ocupación más fina**: Con 256 hilos (8 warps) por bloque caben hasta **8 bloques/SM** (degradación gradual, p. ej. 75% a 40 regs/hilo) y mientras un bloque espera en `__syncthreads()` el planificador puede ejecutar warps de otros bloques.
+  - **Coste**: La reutilización en SMEM baja a **16x** (doble de cargas GMEM y el doble de barreras `__syncthreads()`).
 
-- **Mitigación Total de Bank Conflicts (32 Bancos de SMEM)**:
-  - Lectura `As[ty][k]`: `ty` y `k` son idénticos para todo el warp $\rightarrow$ **Multicast/Broadcast de banco** (1 ciclo, 0 conflictos).
-  - Lectura `Bs[k][tx]`: `k` constante, `tx` varía de 0 a 31 $\rightarrow$ El hilo $i$ lee el banco $i$ ($i \in [0, 31]$) $\rightarrow$ **100% libre de bank conflicts**.
+- **Cero Bank Conflicts (32 Bancos de SMEM)**:
+  - En `32x32`: `As[ty][k]` realiza broadcast por warp y `Bs[k][tx]` mapea el hilo $i$ al banco $i$.
+  - En `16x16`: cada warp de 32 hilos cubre dos filas consecutivas (`ty=0` y `ty=1` con `tx=0..15`). En `As[ty][k]`, ambos medios warps golpean bancos separados por 16 (`k` vs `(k+16)%32`); en `Bs[k][tx]`, ambos leen las mismas 16 palabras (`multicast`). **0 bank conflicts** en ambos casos.
 
 - **Sincronización con Doble Barrera**:
-  - **Barrera 1 (`__syncthreads()`)**: Espera a que los 1024 hilos del bloque carguen colaborativamente el tile completo en `As` y `Bs` antes de comenzar las multiplicaciones.
-  - **Barrera 2 (`__syncthreads()`)**: Espera a que todos los hilos terminen de consumir los datos del tile actual antes de que comience la sobreescritura de `As` y `Bs` en el siguiente paso de $K$.
+  - **Barrera 1 (`__syncthreads()`)**: Espera a que todos los hilos del bloque carguen colaborativamente el tile completo en `As` y `Bs` antes de multiplicar.
+  - **Barrera 2 (`__syncthreads()`)**: Espera a que todos los hilos terminen de consumir el tile actual antes de sobrescribir `As` y `Bs` en el siguiente paso de $K$.
 
 ---
 
-### C. Online Softmax en 1 Pasada e Intra-Warp Shuffle (`warp_online_softmax.cu`)
+### C. Online Softmax en 1 Pasada de Reducción e Intra-Warp Shuffle (`warp_online_softmax.cu`)
 
 El operador Softmax estándar sobre una fila de tamaño $N$ requiere 3 pasadas sobre la memoria global DRAM:
 1. $m = \max_j x_j$
 2. $d = \sum_j e^{x_j - m}$
 3. $y_j = \frac{e^{x_j - m}}{d}$
 
-**Tráfico DRAM Tradicional**: Lectura 1 + Lectura 2 + Lectura 3 + Escritura = $4 \times N \times 4\text{ B} = 16N\text{ bytes}$.
+**Accesos lógicos tradicionales**: Lectura 1 + Lectura 2 + Lectura 3 + Escritura = $4N$ palabras ($16N\text{ bytes}$).
 
 #### Derivación de Online Softmax (Milakov & Gimelshein / Principio FlashAttention)
 Al iterar secuencialmente o en paralelo sobre los elementos, mantenemos el par acumulativo $(m, d)$:
@@ -86,7 +92,7 @@ $$d_{AB} = d_A \cdot e^{m_A - m_{AB}} + d_B \cdot e^{m_B - m_{AB}}$$
 
 Este operador asociativo se ejecuta directamente en los registros del SM mediante `__shfl_down_sync(0xffffffff, val, offset)` en un árbol mariposa de 5 saltos ($\text{offset} = 16, 8, 4, 2, 1$):
 - **Cero uso de Shared Memory**: Cero consumo de SMEM, eliminando latencia de búferes compartidos.
-- **Tráfico DRAM Reducido**: 1 sola lectura para estadísticas + 1 lectura y escritura para normalización ($3N$ palabras en vez de $4N$).
+- **Accesos lógicos reducidos**: Fusiona máximo y suma en **1 sola pasada de lectura** para estadísticas + **1 pasada de lectura/escritura** para normalización ($3N$ palabras en lugar de $4N$). El `BW Efectivo` de la tabla toma como referencia el tráfico útil mínimo teórico ($2N$ palabras: 1 lectura de $X$ + 1 escritura de $Y$).
 
 ---
 

@@ -38,10 +38,14 @@ FORCE=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --dry-run) DRY_RUN=1 ;;
+        --dry-run|--smoke-test) DRY_RUN=1 ;;
         --force) FORCE=1 ;;
-        --engines) ENGINES="$2"; shift ;;
-        --concurrency) CONCURRENCY="$2"; shift ;;
+        --engines)
+            [[ $# -ge 2 ]] || { echo "[ERROR] falta valor para --engines" >&2; exit 2; }
+            ENGINES="$2"; shift ;;
+        --concurrency)
+            [[ $# -ge 2 ]] || { echo "[ERROR] falta valor para --concurrency" >&2; exit 2; }
+            CONCURRENCY="$2"; shift ;;
         -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
         *) echo "[ERROR] opcion desconocida: $1" >&2; exit 2 ;;
     esac

@@ -36,6 +36,7 @@ import math
 import os
 import sys
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # Detect PyTorch & CUDA availability
@@ -52,6 +53,7 @@ TARGET_ARCH = "sm_61 (Pascal GP107)"
 THEORETICAL_PEAK_BW_GB_S = 112.0
 THEORETICAL_PCIE_BW_GB_S = 12.5  # PCIe 3.0 x16
 MAX_VRAM_SAFE_MB = 256.0
+DEFAULT_SUMMARY_PATH = str(Path(__file__).resolve().parent.parent / "artifacts" / "b1_3_summary.json")
 
 
 # ==============================================================================
@@ -161,13 +163,14 @@ def run_physical_benchmark(
     iterations: int,
     warmup: int,
     device: torch.device,
+    cpu_work_ms: float = 0.0,
 ) -> Dict[str, Any]:
     """Executes the benchmark with real PyTorch CUDA tensors and CUDA events."""
     tensor_bytes = dim * dim * 4  # FP32
     tensor_mb = tensor_bytes / (1024 * 1024)
 
     if tensor_mb > MAX_VRAM_SAFE_MB:
-        raise ValueError(f"Tensor size ({tensor_mb:.1f} MB) exceeds safety threshold ({MAX_VRAM_SAFE_MB} MB).")
+        raise ValueError(f"Tensor size ({tensor_mb:.1f} MiB) exceeds safety threshold ({MAX_VRAM_SAFE_MB} MiB).")
 
     print(f"  [CUDA] Modo: {mode.upper()} | Dim: {dim}x{dim} ({tensor_mb:.2f} MiB FP32) | Ops: {num_ops} | Iters: {iterations}")
 
@@ -176,45 +179,34 @@ def run_physical_benchmark(
         # Antipattern B: Host memory is regular PAGEABLE memory (pin_memory=False)
         host_tensor = torch.randn(dim, dim, dtype=torch.float32, pin_memory=False)
         fused_fn = None
-        fusion_engine = "None (Unfused 200 Kernel Launches)"
+        fusion_engine = f"None (Unfused {num_ops * 3} Kernel Launches)"
     else:
         # Opt B: Host memory is PINNED memory (pin_memory=True, page-locked)
         host_tensor = torch.randn(dim, dim, dtype=torch.float32, pin_memory=True)
         fused_fn, fusion_engine = get_fused_fn(num_ops)
         print(f"  [CUDA] Motor de fusión activo: {fusion_engine}")
 
-    # CUDA Events for fine-grained hardware timing
-    start_event = torch.cuda.Event(enable_timing=True)
-    stop_event = torch.cuda.Event(enable_timing=True)
-    h2d_start = torch.cuda.Event(enable_timing=True)
-    h2d_stop = torch.cuda.Event(enable_timing=True)
-    comp_start = torch.cuda.Event(enable_timing=True)
-    comp_stop = torch.cuda.Event(enable_timing=True)
-
-    stream = torch.cuda.Stream(device=device) if mode == "opt" else None
+    # Pre-allocate per-iteration CUDA events so mode='opt' never calls cudaDeviceSynchronize inside the hot loop.
+    h2d_starts = [torch.cuda.Event(enable_timing=True) for _ in range(iterations)]
+    h2d_stops = [torch.cuda.Event(enable_timing=True) for _ in range(iterations)]
+    comp_starts = [torch.cuda.Event(enable_timing=True) for _ in range(iterations)]
+    comp_stops = [torch.cuda.Event(enable_timing=True) for _ in range(iterations)]
 
     step_times_ms: List[float] = []
     h2d_times_ms: List[float] = []
     comp_times_ms: List[float] = []
     sync_times_ms: List[float] = []
-    cpu_wall_times_ms: List[float] = []
 
     # Warmup loop
     print(f"  [CUDA] Ejecutando {warmup} iteraciones de warmup...")
-    for w in range(warmup):
+    for _ in range(warmup):
         if mode == "bad":
-            # Antipattern B: synchronous pageable transfer
             g = host_tensor.to(device, non_blocking=False)
-            # Antipattern C: unfused ops
             g = run_unfused_ops(g, num_ops)
-            # Antipattern A: sync .item()
             _ = g.mean().item()
         else:
-            # Opt B: pinned async transfer
             g = host_tensor.to(device, non_blocking=True)
-            # Opt C: fused ops
             g = fused_fn(g, num_ops)
-            # Opt A: keep on device
             _ = g.mean()
         torch.cuda.synchronize(device)
 
@@ -228,80 +220,72 @@ def run_physical_benchmark(
         t_iter_start = time.perf_counter()
         nvtx_push(f"Iteration_{it}")
 
-        # ----------------------------------------------------------------------
         # Sub-stage 1: Host to Device Transfer
-        # ----------------------------------------------------------------------
         if mode == "bad":
             nvtx_push("Antipattern_B_Pageable_Sync_H2D")
-            h2d_start.record()
-            # Antipattern B: non_blocking=False + pageable host memory
+            h2d_starts[it].record()
             gpu_tensor = host_tensor.to(device, non_blocking=False)
-            h2d_stop.record()
+            h2d_stops[it].record()
             nvtx_pop()
         else:
             nvtx_push("Opt_B_Pinned_Async_H2D")
-            h2d_start.record()
-            # Opt B: non_blocking=True + pinned page-locked host memory
+            h2d_starts[it].record()
             gpu_tensor = host_tensor.to(device, non_blocking=True)
-            h2d_stop.record()
+            h2d_stops[it].record()
             nvtx_pop()
 
-        # ----------------------------------------------------------------------
-        # Sub-stage 2: Element-wise Operations (200 ops vs Fused)
-        # ----------------------------------------------------------------------
+        # Sub-stage 2: Element-wise Operations (unfused vs fused)
         if mode == "bad":
-            nvtx_push("Antipattern_C_200_Unfused_Kernels")
-            comp_start.record()
+            nvtx_push("Antipattern_C_Unfused_Kernels")
+            comp_starts[it].record()
             gpu_tensor = run_unfused_ops(gpu_tensor, num_ops)
-            comp_stop.record()
+            comp_stops[it].record()
             nvtx_pop()
         else:
-            nvtx_push("Opt_C_Fused_Loop_Kernel")
-            comp_start.record()
+            nvtx_push("Opt_C_Compute_Ops")
+            comp_starts[it].record()
             gpu_tensor = fused_fn(gpu_tensor, num_ops)
-            comp_stop.record()
+            comp_stops[it].record()
             nvtx_pop()
 
-        # ----------------------------------------------------------------------
         # Sub-stage 3: Metric Readback / Accumulation
-        # ----------------------------------------------------------------------
         t_sync_start = time.perf_counter()
         if mode == "bad":
             nvtx_push("Antipattern_A_Sync_Item_Pipeline_Stall")
             # Antipattern A: .item() forces cudaStreamSynchronize / cudaMemcpy D2H
-            scalar_metric = gpu_tensor.mean().item()
-            sync_duration_ms = (time.perf_counter() - t_sync_start) * 1000.0
-            sync_times_ms.append(sync_duration_ms)
+            _scalar_metric = gpu_tensor.mean().item()
+            sync_times_ms.append((time.perf_counter() - t_sync_start) * 1000.0)
             nvtx_pop()
+            if cpu_work_ms > 0:
+                time.sleep(cpu_work_ms / 1000.0)
+            step_times_ms.append((time.perf_counter() - t_iter_start) * 1000.0)
+            h2d_times_ms.append(h2d_starts[it].elapsed_time(h2d_stops[it]))
+            comp_times_ms.append(comp_starts[it].elapsed_time(comp_stops[it]))
         else:
             nvtx_push("Opt_A_Device_Async_Accumulation")
-            # Opt A: Zero synchronization in the loop. Kept as GPU tensor scalar.
+            # Opt A: Zero synchronization inside the hot loop. Kept on device.
             device_accumulated_metric = device_accumulated_metric + gpu_tensor.mean()
-            sync_duration_ms = (time.perf_counter() - t_sync_start) * 1000.0
-            sync_times_ms.append(sync_duration_ms)
+            sync_times_ms.append((time.perf_counter() - t_sync_start) * 1000.0)
             nvtx_pop()
-
-        # Wait for iteration CUDA events to resolve timings
-        torch.cuda.synchronize(device)
-        t_iter_end = time.perf_counter()
-
-        step_h2d_ms = h2d_start.elapsed_time(h2d_stop)
-        step_comp_ms = comp_start.elapsed_time(comp_stop)
-        step_total_ms = (t_iter_end - t_iter_start) * 1000.0
-
-        h2d_times_ms.append(step_h2d_ms)
-        comp_times_ms.append(step_comp_ms)
-        step_times_ms.append(step_total_ms)
-        cpu_wall_times_ms.append(step_total_ms)
+            if cpu_work_ms > 0:
+                # Overlaps with queued GPU work when Antipattern A is removed
+                time.sleep(cpu_work_ms / 1000.0)
 
         nvtx_pop()  # Iteration_{it}
 
-    total_end_wall = time.perf_counter()
-    total_wall_ms = (total_end_wall - total_start_wall) * 1000.0
-
-    # Outside the hot loop: Final synchronization for Opt mode
+    # Outside the hot loop: single final synchronization for Opt mode
     if mode == "opt":
-        final_metric = device_accumulated_metric.item()
+        _final_metric = device_accumulated_metric.item()
+        total_end_wall = time.perf_counter()
+        total_wall_ms = (total_end_wall - total_start_wall) * 1000.0
+        avg_wall_step_ms = total_wall_ms / max(iterations, 1)
+        for it in range(iterations):
+            h2d_times_ms.append(h2d_starts[it].elapsed_time(h2d_stops[it]))
+            comp_times_ms.append(comp_starts[it].elapsed_time(comp_stops[it]))
+            step_times_ms.append(avg_wall_step_ms)
+    else:
+        total_end_wall = time.perf_counter()
+        total_wall_ms = (total_end_wall - total_start_wall) * 1000.0
 
     # Nominal count (mul, add, relu = 3 kernels per op when unfused); real counts come from nsys.
     fused = mode == "opt" and "Inductor" in fusion_engine
@@ -331,107 +315,14 @@ def run_physical_benchmark(
     }
 
 
-# ==============================================================================
-# Architectural Hardware Model (Pascal sm_61 / GTX 1050 Emulator)
-# ==============================================================================
-
-def run_simulated_benchmark(
-    mode: str,
-    dim: int,
-    num_ops: int,
-    iterations: int,
-    warmup: int,
-) -> Dict[str, Any]:
-    """
-    Physically grounded architectural model of the NVIDIA GeForce GTX 1050 (sm_61).
-    Used when CUDA/PyTorch is absent or --force-simulation is specified.
-    
-    Model parameters:
-      - Host PCIe 3.0 x16 peak: 12.5 GB/s
-      - Pageable staging buffer throughput: ~6.0 GB/s (double hop: malloc -> pinned -> PCIe)
-      - Pinned DMA direct transfer: ~11.5 GB/s (direct DMA engine)
-      - CUDA kernel launch overhead: ~3.5 us per launch on Linux x86_64 driver
-      - GTX 1050 DRAM effective bandwidth: ~72.0 GB/s (out of 112 GB/s peak)
-      - L2 cache: 1024 KB. Tensors > 1 MB bypass L2 and hit DRAM directly.
-      - Antipattern A .item() latency: Host-GPU pipeline drain + D2H latency (~15 us + queue flush)
-      - Antipattern C 200 unfused ops: 200 kernel launches * (read + write 16.8 MB DRAM)
-      - Opt C fused kernel: 1 kernel launch * (1 read + 1 write 16.8 MB DRAM), values in registers
-    """
-    tensor_bytes = dim * dim * 4
-    tensor_mb = tensor_bytes / (1024 * 1024)
-
-    # PCIe Transfer Modeling
-    if mode == "bad":
-        # Pageable memory copy: CPU staging buffer overhead + PCIe transfer
-        pcie_eff_bw = 6.0 * 1e9  # Bytes/sec
-        cpu_staging_overhead_s = 0.0008  # 800 us driver staging buffer memcpy
-        h2d_base_ms = ((tensor_bytes / pcie_eff_bw) + cpu_staging_overhead_s) * 1000.0
-    else:
-        # Pinned memory direct DMA
-        pcie_eff_bw = 11.2 * 1e9  # Bytes/sec
-        h2d_base_ms = (tensor_bytes / pcie_eff_bw) * 1000.0
-
-    # Compute & Kernel Launch Modeling
-    dram_eff_bw = 72.0 * 1e9  # Bytes/sec
-    kernel_launch_overhead_s = 3.5e-6  # 3.5 us per kernel launch
-
-    if mode == "bad":
-        # 200 separate kernel launches. Each reads tensor_bytes and writes tensor_bytes
-        # Intermediate writes exceed 1MB L2 cache, forcing DRAM roundtrips
-        total_traffic_bytes = num_ops * (2 * tensor_bytes)
-        dram_transfer_s = total_traffic_bytes / dram_eff_bw
-        launch_overhead_s = (num_ops * 2) * kernel_launch_overhead_s
-        comp_base_ms = (dram_transfer_s + launch_overhead_s) * 1000.0
-        sync_base_ms = 0.28  # 280 us pipeline bubble & stream sync stall
-        kernel_launches_per_step = num_ops * 2
-    else:
-        # Fused Inductor / single-pass loop kernel
-        # 1 read + 1 write from/to DRAM; intermediate math in registers
-        total_traffic_bytes = 2 * tensor_bytes
-        dram_transfer_s = total_traffic_bytes / dram_eff_bw
-        launch_overhead_s = 1 * kernel_launch_overhead_s
-        comp_base_ms = (dram_transfer_s + launch_overhead_s) * 1000.0
-        sync_base_ms = 0.005  # 5 us negligible on-device tensor ref
-        kernel_launches_per_step = 1
-
-    step_times: List[float] = []
-    h2d_times: List[float] = []
-    comp_times: List[float] = []
-    sync_times: List[float] = []
-
-    # Inject slight realistic hardware variance (~1.5% jitter)
-    import random
-    rng = random.Random(42)
-
-    for i in range(iterations):
-        jitter = 1.0 + (rng.uniform(-0.02, 0.02))
-        h_ms = h2d_base_ms * jitter
-        c_ms = comp_base_ms * jitter
-        s_ms = sync_base_ms * jitter
-        step_ms = h_ms + c_ms + s_ms
-
-        h2d_times.append(h_ms)
-        comp_times.append(c_ms)
-        sync_times.append(s_ms)
-        step_times.append(step_ms)
-
-    total_wall_ms = sum(step_times)
-
+def verify_cpu_setup(dim: int, num_ops: int) -> Dict[str, Any]:
+    """Offline structural check (no GPU timings fabricated, per AGENTS.md §5.1)."""
     return {
-        "mode": mode,
-        "is_simulation": True,
-        "fusion_engine": "torch.compile (Inductor Fused Loop Kernel - Simulated)" if mode == "opt" else "None",
-        "total_wall_ms": total_wall_ms,
-        "step_time_ms": compute_stats(step_times),
-        "h2d_time_ms": compute_stats(h2d_times),
-        "comp_time_ms": compute_stats(comp_times),
-        "sync_time_ms": compute_stats(sync_times),
-        "kernel_launches_total": kernel_launches_per_step * iterations,
-        "kernel_launches_per_step": kernel_launches_per_step,
-        "tensor_mb": tensor_mb,
+        "torch_available": TORCH_AVAILABLE,
+        "cuda_available": bool(TORCH_AVAILABLE and torch.cuda.is_available()),
         "dim": dim,
         "num_ops": num_ops,
-        "iterations": iterations,
+        "nominal_unfused_kernels_per_step": num_ops * 3,
     }
 
 
@@ -533,7 +424,8 @@ def print_summary_comparison(bad_res: Dict[str, Any], opt_res: Dict[str, Any]) -
     print(f"  {'Latencia Total por Paso':<32} | {bad_step:10.3f} ms     | {opt_step:10.3f} ms     | {speedup_step:10.2f}x")
     print(f"  {'Kernel Launches por Paso':<32} | {bad_res['kernel_launches_per_step']:10d}        | {opt_res['kernel_launches_per_step']:10d}        | {bad_res['kernel_launches_per_step']/opt_res['kernel_launches_per_step']:10.1f}x menos")
     print(f"  {'Mecanismo H2D Host':<32} | {'Pageable (Sync)':<18} | {'Pinned (Async DMA)':<18} | {'Zero-Copy Staging':<16}")
-    print(f"  {'Fusión de Operaciones':<32} | {'200 Kernels':<18} | {opt_res.get('fusion_engine', 'torch.compile')[:18]:<18} | {'Registros SM':<16}")
+    bad_kern_lbl = f"{bad_res['kernel_launches_per_step']} Kernels"
+    print(f"  {'Fusión de Operaciones':<32} | {bad_kern_lbl:<18} | {opt_res.get('fusion_engine', 'torch.compile')[:18]:<18} | {'Registros SM':<16}")
     print("=" * 90)
     print(f"  >>> SPEEDUP GLOBAL EN TIEMPO DE PASO: {speedup_step:.2f}x")
     print("=" * 90 + "\n")
@@ -586,13 +478,19 @@ def main() -> int:
     parser.add_argument(
         "--output",
         type=str,
-        default="./artifacts/b1_3_summary.json",
+        default=DEFAULT_SUMMARY_PATH,
         help="Ruta donde guardar el resumen JSON consolidado.",
     )
     parser.add_argument(
-        "--force-simulation",
+        "--cpu-work-ms",
+        type=float,
+        default=0.0,
+        help="Trabajo sintético en CPU por paso (ms) para observar pérdida de solapamiento con .item().",
+    )
+    parser.add_argument(
+        "--check-only",
         action="store_true",
-        help="Fuerza la ejecución en modo modelo arquitectural sin requerir hardware CUDA.",
+        help="Verifica dependencias y parámetros sin requerir GPU ni escribir en artifacts/.",
     )
     parser.add_argument(
         "--quiet",
@@ -608,13 +506,22 @@ def main() -> int:
     iterations = 5 if args.smoke_test else args.iterations
     warmup = 2 if args.smoke_test else args.warmup
 
-    use_cuda = (
-        TORCH_AVAILABLE
-        and torch.cuda.is_available()
-        and not args.force_simulation
-    )
+    if args.check_only:
+        info = verify_cpu_setup(dim=dim, num_ops=num_ops)
+        if not args.quiet:
+            print(f"[CHECK-ONLY] {json.dumps(info)}")
+        return 0
 
-    device = torch.device("cuda:0") if use_cuda else None
+    use_cuda = TORCH_AVAILABLE and torch.cuda.is_available()
+    if not use_cuda:
+        print(
+            "[ERROR] CUDA no está disponible en este entorno. B1.3 requiere GPU NVIDIA "
+            "(no se generan resultados simulados ni se sobrescribe artifacts/ — AGENTS.md §5.1).",
+            file=sys.stderr,
+        )
+        return 1
+
+    device = torch.device("cuda:0")
 
     if not args.quiet:
         print("=" * 80)
@@ -623,30 +530,21 @@ def main() -> int:
         print(f"  - Hardware destino: {TARGET_GPU_NAME} ({TARGET_ARCH})")
         print(f"  - Modo seleccionado: {args.mode.upper()}")
         print(f"  - Configuración: Tensor {dim}x{dim} ({dim*dim*4/(1024*1024):.2f} MiB FP32), Ops={num_ops}, Iters={iterations}, Warmup={warmup}")
-        print(f"  - Entorno de ejecución: {'CUDA FÍSICO DISPONIBLE' if use_cuda else 'EMULADOR ARQUITECTURAL PASCAL sm_61'}")
+        print("  - Entorno de ejecución: CUDA FÍSICO DISPONIBLE")
         if args.smoke_test:
             print("  - [SMOKE-TEST ACTIVO] Parámetros reducidos para validación rápida (< 30s)")
         print("=" * 80)
 
-    # Execution dispatcher
     def run_one_mode(m: str) -> Dict[str, Any]:
-        if use_cuda:
-            return run_physical_benchmark(
-                mode=m,
-                dim=dim,
-                num_ops=num_ops,
-                iterations=iterations,
-                warmup=warmup,
-                device=device,
-            )
-        else:
-            return run_simulated_benchmark(
-                mode=m,
-                dim=dim,
-                num_ops=num_ops,
-                iterations=iterations,
-                warmup=warmup,
-            )
+        return run_physical_benchmark(
+            mode=m,
+            dim=dim,
+            num_ops=num_ops,
+            iterations=iterations,
+            warmup=warmup,
+            device=device,
+            cpu_work_ms=args.cpu_work_ms,
+        )
 
     bad_results: Optional[Dict[str, Any]] = None
     opt_results: Optional[Dict[str, Any]] = None
@@ -703,7 +601,7 @@ def main() -> int:
             "iterations": iterations,
             "warmup": warmup,
             "smoke_test": args.smoke_test,
-            "is_simulation": bad_results.get("is_simulation", True),
+            "is_simulation": False,
         },
         "bad_mode": {
             "description": "Antipatterns: (a) .item() in loop, (b) Pageable H2D sync, (c) 200 unfused ops",
