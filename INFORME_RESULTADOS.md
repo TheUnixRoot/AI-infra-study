@@ -162,4 +162,13 @@ Resultados medidos en contenedor `ai-infra-study:llama-cuda12.6` (GTX 1050 2 GB 
 
 ![Ablación KV-Cache: Calidad vs Profundidad](artifacts/b3_1_kv_ablation.png)
 
+### Escalera de ablación Hadamard en `PQ2_0` (`N0 → N1 → N2 → N4`, `493,3 MiB`)
+
+- **Test de Identidad F16 (`ngl=0`):** `F16 N1` (`block_size=1, identity`) obtiene `PPL = 13,4057` (`SameTop = 100,0 %`) y `F16 N2` (`block_size=512`, 151 tensores doblados incluyendo `token_embd` *tied* y `ssm_out`) obtiene `PPL = 13,4055` (`KLD = 0,0000`, `SameTop = 99,951 %`).
+- **En `PQ2_0` (`ngl=99`, `151 PQ2_0 + 169 F32`):**
+  - Con el redondeo nativo `d = amax` de `quantize_row_pq2_0_ref`, colapsan tanto `N1a` sin rotación (`PPL = 3,49M`, `KLD = 12,58`) como `N2a` con Hadamard (`PPL = 2,80M`, `KLD = 12,40`).
+  - Pre-proyectando cada bloque de 128 pesos a la retícula ternaria MSE-óptima (**TWN**), `N1b` baja `175×` hasta `PPL = 19.995` (`KLD = 7,33`, `SameTop = 1,23 %`) y **Hadamard (`N2b`) reduce otra `2,86×` hasta `PPL = 6.992` (`KLD = 6,30`, `SameTop = 4,56 %`, `tg128 = 69,94 tok/s`)**, confirmando que Hadamard aplana *outliers* pero no sustituye a GPTQ (`N3`, pendiente) ni al QAT de `Bonsai 2` (`N4`, `PPL = 25,48`, `KLD = 0,52`).
+
+![Escalera de ablación Hadamard en PQ2_0](artifacts/b3_1_ablation_ladder.png)
+
 Detalle completo, tabla completa por modelo (`PTQ1_0`, `Q4_K_M`, sonda `#21383`), explicación matemática y fuentes en [`b3_1_hadamard_bonsai/README.md`](b3_1_hadamard_bonsai/README.md).
