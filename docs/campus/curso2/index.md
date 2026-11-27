@@ -27,5 +27,5 @@ flowchart LR
 | `CHAT-B3` | **B3 · Seldon/Knative, Istio, ArgoCD y Crossplane** | Manifiestos Knative KPA + Istio Canary + `AnalysisTemplate` + XRD `XAgenticEnvironment` | [Abrir Bloque 3 →](b3-serving-gitops-crossplane.md) |
 | `CHAT-B4` | **B4 · SLOs Agénticos, GameDay y Multi-Región** | Runbooks + simulacro *blameless* + ADR enrutamiento soberano UE | [Abrir Bloque 4 →](b4-sre-slos-multiregion.md) |
 
-- **Manual PDF del Curso 2 (16 pág.):** [Descargar `Curso_2_Agentic_Platform_MLOps.pdf`](../../pdf/Curso_2_Agentic_Platform_MLOps.pdf)
+- **Manual PDF del Curso 2:** [Descargar `Curso_2_Agentic_Platform_MLOps.pdf`](../../pdf/Curso_2_Agentic_Platform_MLOps.pdf)
 - **Playbook maestro original:** [Leer `01-agentic-mlops-playbook.md`](../../temario/01-agentic-mlops-playbook.md)

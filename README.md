@@ -1,13 +1,14 @@
-# AI Infra & Agentic MLOps · Campus Virtual
+# AI Infra, Agentic MLOps & Edge-AI · Campus Virtual
 
 > **Sitio Web / Campus Virtual (GitHub Pages):** [`https://theunixroot.github.io/AI-infra-study/`](https://theunixroot.github.io/AI-infra-study/) · [Entrar al Tour del Campus](docs/campus/index.md) · [Mi Progreso y Handover (20 min)](docs/campus/progreso.md)
 
-Plataforma de aprendizaje técnico de nivel Máster con **dos itinerarios sobre un Tronco Común** de ingeniería de IA, prácticas reproducibles en GPU/local y manuales editados en **Typst → PDF**:
+Plataforma de aprendizaje técnico de nivel Máster con **tres itinerarios sobre un Tronco Común** de ingeniería de IA, prácticas reproducibles en GPU/local/móvil y manuales editados en **Typst → PDF**:
 
-- 🧭 **Tronco Común (6 Pilares + Micro-sprints 20m):** [Portal interactivo](docs/campus/tronco-comun.md) · [Matriz comparativa](docs/temario/02-tronco-comun-y-itinerarios.md)
-- ⚙️ **Curso 1 · AI Infrastructure & GPU Systems:** [Portal Curso 1](docs/campus/curso1/index.md) · [Playbook maestro](docs/temario/00-master-playbook.md) · [PDF Curso 1 (21 pág.)](docs/pdf/Curso_1_AI_Infrastructure_GPU.pdf)
-- 🤖 **Curso 2 · Enterprise MLOps & Agentic Platform:** [Portal Curso 2](docs/campus/curso2/index.md) · [Playbook maestro](docs/temario/01-agentic-mlops-playbook.md) · [PDF Curso 2 (16 pág.)](docs/pdf/Curso_2_Agentic_Platform_MLOps.pdf)
-- 📚 **Biblioteca PDF Unificada (35 pág.):** [Volumen Máster Unificado](docs/pdf/Master_AI_Infra_y_Agentic_MLOps.pdf) · [Centro PDF y fuentes Typst](docs/campus/biblioteca-pdf.md)
+- 🧭 **Tronco Común (6 Pilares + Lo Común vs. Lo Específico):** [Portal interactivo](docs/campus/tronco-comun.md) · [Matriz comparativa](docs/temario/02-tronco-comun-y-itinerarios.md)
+- ⚙️ **Curso 1 · AI Infrastructure & GPU Systems:** [Portal Curso 1](docs/campus/curso1/index.md) · [Playbook maestro](docs/temario/00-master-playbook.md) · [PDF Curso 1](docs/pdf/Curso_1_AI_Infrastructure_GPU.pdf)
+- 🤖 **Curso 2 · Enterprise MLOps & Agentic Platform:** [Portal Curso 2](docs/campus/curso2/index.md) · [Playbook maestro](docs/temario/01-agentic-mlops-playbook.md) · [PDF Curso 2](docs/pdf/Curso_2_Agentic_Platform_MLOps.pdf)
+- 📱 **Curso 3 · Edge-AI Sub-2-Bit & Kernels Portables (`B3-Edge`, 0 €):** [Portal Curso 3](docs/campus/curso3/index.md) · [Playbook maestro](docs/temario/03-edge-ai-ternary-playbook.md) · [PDF Curso 3](docs/pdf/Curso_3_Edge_AI_Sub2Bit_Kernels.pdf)
+- 📚 **Biblioteca PDF Unificada (Tronco + 3 Cursos):** [Volumen Máster Unificado](docs/pdf/Master_AI_Infra_y_Agentic_MLOps.pdf) · [Centro PDF y fuentes Typst](docs/campus/biblioteca-pdf.md)
 - 📊 **Resultados medidos de las prácticas:** [Informe de resultados](INFORME_RESULTADOS.md) · 🐳 [`Dockerfile`](Dockerfile) · 🤖 [`AGENTS.md`](AGENTS.md)
 
 > Todas las cifras de este repositorio proceden de ejecuciones reales (`artifacts/`). Ninguna práctica genera
@@ -15,19 +16,19 @@ Plataforma de aprendizaje técnico de nivel Máster con **dos itinerarios sobre 
 
 ## Hardware de referencia (local)
 
-| Parámetro | NVIDIA GeForce GTX 1050 |
-| :--- | :--- |
-| Microarquitectura / Compute Capability | Pascal GP107 / `sm_61` |
-| SMs / CUDA cores | 5 SMs / 640 |
-| VRAM | 2 GB GDDR5, bus 128 bit, ~112 GB/s teóricos |
-| Caché L2 / Shared memory | 1 MB / 48 KB máx. por bloque (96 KB por SM en GP107) |
-| FP32 teórico | ~1,86 TFLOP/s |
+| Parámetro | NVIDIA GeForce GTX 1050 (PC Local) | Móvil Android (Curso 3 `[LOC-AND]`) |
+| :--- | :--- | :--- |
+| Microarquitectura / Compute Capability | Pascal GP107 / `sm_61` | ARM64 (`NEON`/`dotprod`) + GPU Adreno/Mali |
+| SMs / CUDA cores | 5 SMs / 640 (`__dp4a` soportado) | GPU móvil con *subgroups* Vulkan 1.2+ |
+| VRAM / Memoria | `2 GB` GDDR5, bus 128 bit, `~112 GB/s` teóricos | Memoria unificada compartida (`zero-copy`) |
+| Caché L2 / Shared memory | `1 MB` / `48 KB` máx. por bloque (`96 KB/SM` en GP107) | Heap `HOST_VISIBLE \| DEVICE_LOCAL` |
+| FP32 teórico / Energía | `~1,86 TFLOP/s` | Consumo objetivo `3–8 W` (`< 8 W` 24/7) |
 
-Límites de esta GPU (por qué hay unidades en cloud): sin Triton ni `ncu` moderno (necesitan `sm_70+`), sin FP8, sin multi-GPU.
+Límites de la GTX 1050 (por qué hay unidades de Curso 1 en cloud): sin Triton ni `ncu` moderno (necesitan `sm_70+`), sin FP8, sin multi-GPU. En **Curso 3 (`0 €`)**, tanto los modelos 2B sub-2-bit (`< 1 GB`) como el PTQ CPU (`16 GB+` RAM) y los kernels `__dp4a`/Vulkan corren localmente.
 
 ## Temario del Campus e Índice de Prácticas
 
-Estados: ✅ hecha y medida · 🟡 parcial · ⬜ pendiente. Modos: `[MOB]` lectura, `[LOC]` local, `[PREP]`/`[CLD]` preparación y ráfaga cloud, `[LAB]` sandbox 0 €.
+Estados: ✅ hecha y medida · 🟡 parcial · ⬜ pendiente. Modos: `[MOB]` lectura/notas, `[LOC]` local, `[LOC-PC]` PC local (`C3`), `[LOC-AND]` Android Termux (`C3`), `[AGENT]` delegación con tests (`C3`), `[PREP]`/`[CLD]` ráfaga cloud, `[LAB]` sandbox 0 €.
 
 ### Curso 1 · AI Infrastructure & GPU Systems ([Portal del Curso 1](docs/campus/curso1/index.md))
 
@@ -85,15 +86,30 @@ Estados: ✅ hecha y medida · 🟡 parcial · ⬜ pendiente. Modos: `[MOB]` lec
 | `CHAT-B3` | **B3 (`B3.1`–`B3.3`) · Serving K8s (Seldon/Knative), Istio + ArgoCD y Crossplane** | `[MOB]` `[LOC]` | [Bloque 3 →](docs/campus/curso2/b3-serving-gitops-crossplane.md) |
 | `CHAT-B4` | **B4 (`B4.1`–`B4.3`) · SRE SLOs, GameDay Blameless y Multi-Región UE** | `[MOB]` `[LOC]` | [Bloque 4 →](docs/campus/curso2/b4-sre-slos-multiregion.md) |
 
+### Curso 3 · Edge-AI Sub-2-Bit & Kernels Portables ([Portal del Curso 3](docs/campus/curso3/index.md))
+
+Extensión `B3-Edge` (`0 €`, 33 micro-sprints) que construye el repositorio `edge-ternary-lab` y tiende el puente directo desde `LogFit` hacia HPAC/UMA:
+
+| Módulo | Foco principal y entregable (`H0`–`H6`) | Modo | Sprints | Portal Campus |
+| :--- | :--- | :---: | :---: | :--- |
+| `E0` | Infra `llama.cpp`/PrismML + Termux + telemetría `mWh/token` (`H0`) | `[LOC-PC]` `[LOC-AND]` `[AGENT]` | `4` | [Módulos E0–E1 →](docs/campus/curso3/e0-e1-infra-baseline.md) |
+| `E1` | Baseline `Qwen3.5-2B` vs `Ternary Bonsai 2 2B` + Roofline (`H1`) | `[MOB]` `[LOC-PC]` `[LOC-AND]` | `4` | [Módulos E0–E1 →](docs/campus/curso3/e0-e1-infra-baseline.md) |
+| `E2` | Packing base-3 `TQ1_0`, Hadamard (`FHT`) y `GPTQ` CPU capa a capa (`H2`) | `[MOB]` `[LOC-PC]` `[AGENT]` | `6` | [Módulo E2 →](docs/campus/curso3/e2-ptq-hadamard-gptq.md) |
+| `E3` | Portabilidad a `Gemma 4 E2B` (`< 1 GB`), `GSM8K`/`IFEval` y Pareto (`H3`) | `[MOB]` `[LOC-PC]` `[LOC-AND]` `[AGENT]` | `5` | [Módulo E3 →](docs/campus/curso3/e3-gemma4-evals-pareto.md) |
+| `E4` | Kernels `GEMV` ternario `__dp4a` (`sm_61`), `FHT 1024` y Vulkan GLSL (`H4`) | `[MOB]` `[LOC-PC]` `[LOC-AND]` `[AGENT]` | `7` | [Módulo E4 →](docs/campus/curso3/e4-kernels-cuda-vulkan.md) |
+| `E5` | API doméstica `< 8 W`, *LogFit-Edge* CPU+GPU, `Logfit` + Dossier UMA (`H5`) | `[MOB]` `[LOC-PC]` `[LOC-AND]` | `4` | [Módulos E5–E6 →](docs/campus/curso3/e5-e6-edge-server-logfit-qat.md) |
+| `E6` | Bonus opcional: QAT mínimo con `STE` + destilación KL en T4 (`H6`) | `[MOB]` `[AGENT]` `[LOC-PC]` | `3` | [Módulos E5–E6 →](docs/campus/curso3/e5-e6-edge-server-logfit-qat.md) |
+
 ### Documentos del temario
 
-Los documentos completos del temario se mantienen en Markdown (ver [Playbook Curso 1](docs/temario/00-master-playbook.md)):
+Los documentos completos del temario se mantienen en Markdown:
 
 | Documento | Unidad |
 | :--- | :--- |
 | [Curso 1 · Master Playbook: AI Infrastructure & GPU Systems](docs/temario/00-master-playbook.md) | Curso 1 (`B1`–`B5`) |
 | [Curso 2 · Master Playbook: Agentic Platform MLOps](docs/temario/01-agentic-mlops-playbook.md) | Curso 2 (`B1`–`B4`) |
-| [Tronco común y mapa comparativo de los dos itinerarios](docs/temario/02-tronco-comun-y-itinerarios.md) | Base compartida (6 pilares) |
+| [Tronco común, lo común vs. lo específico y mapa de los tres itinerarios](docs/temario/02-tronco-comun-y-itinerarios.md) | Base compartida (6 pilares) |
+| [Curso 3 · Master Playbook: Edge-AI Sub-2-Bit & Kernels Portables](docs/temario/03-edge-ai-ternary-playbook.md) | Curso 3 (`E0`–`E6` · `B3-Edge`) |
 
 ### Manuales de nivel Máster (Typst → PDF)
 
@@ -101,9 +117,10 @@ Ediciones autocontenidas con infografías vectoriales, temario extendido, ejerci
 
 | Edición | Fuente Typst | PDF Compilado |
 | :--- | :--- | :--- |
-| **Volumen Máster Unificado** (Tronco Común + Curso 1 + Curso 2) | [`master_ai_infra_y_mlops.typ`](docs/pdf/master_ai_infra_y_mlops.typ) | [`Master_AI_Infra_y_Agentic_MLOps.pdf`](docs/pdf/Master_AI_Infra_y_Agentic_MLOps.pdf) |
+| **Volumen Máster Unificado** (Tronco Común + Curso 1 + Curso 2 + Curso 3) | [`master_ai_infra_y_mlops.typ`](docs/pdf/master_ai_infra_y_mlops.typ) | [`Master_AI_Infra_y_Agentic_MLOps.pdf`](docs/pdf/Master_AI_Infra_y_Agentic_MLOps.pdf) |
 | **Curso 1:** AI Infrastructure, GPU Systems & Inference Engines | [`curso1_ai_infra.typ`](docs/pdf/curso1_ai_infra.typ) | [`Curso_1_AI_Infrastructure_GPU.pdf`](docs/pdf/Curso_1_AI_Infrastructure_GPU.pdf) |
 | **Curso 2:** Enterprise MLOps & Agentic Platform Engineering | [`curso2_agentic_mlops.typ`](docs/pdf/curso2_agentic_mlops.typ) | [`Curso_2_Agentic_Platform_MLOps.pdf`](docs/pdf/Curso_2_Agentic_Platform_MLOps.pdf) |
+| **Curso 3:** Edge-AI Sub-2-Bit, Kernels Portables & Réplica PrismML | [`curso3_edge_ai.typ`](docs/pdf/curso3_edge_ai.typ) | [`Curso_3_Edge_AI_Sub2Bit_Kernels.pdf`](docs/pdf/Curso_3_Edge_AI_Sub2Bit_Kernels.pdf) |
 
 ## Resultados medidos (GTX 1050)
 
@@ -139,8 +156,8 @@ con `sudo shutdown -h +90`.
 ## Estructura
 
 ```
-├── docs/campus/           # Campus Virtual web (Tronco Común, Curso 1, Curso 2, Biblioteca PDF, Progreso)
-├── docs/temario/          # Temario Markdown (Master Playbooks y Tronco Común)
+├── docs/campus/           # Campus Virtual web (Tronco Común, Curso 1, Curso 2, Curso 3, Biblioteca PDF, Progreso)
+├── docs/temario/          # Temario Markdown (Master Playbooks C1/C2/C3 y Tronco Común)
 ├── docs/pdf/              # Manuales Máster en Typst (.typ) y PDF compilados (.pdf)
 ├── b1_1_strides/          # B1.1 strides, .contiguous() y baseline clone()
 ├── b1_2_cuda_gemm/        # B1.2 CUDA C++ (GEMM 32x32/16x16, warp online softmax)

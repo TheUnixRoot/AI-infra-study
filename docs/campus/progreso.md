@@ -1,6 +1,6 @@
 # Mi Progreso y Generador de Handover (20 min)
 
-Marca tus unidades completadas en ambos cursos (**Tronco Común**, **Curso 1** y **Curso 2**). El progreso se guarda localmente en tu navegador (`localStorage`) sin necesidad de servidor externo.
+Marca tus unidades completadas en el **Tronco Común**, **Curso 1**, **Curso 2** y **Curso 3 (Edge-AI)**. El progreso se guarda localmente en tu navegador (`localStorage`) sin necesidad de servidor externo.
 
 ## Panel de Avance por Itinerario
 
@@ -21,10 +21,13 @@ Rellena los 5 campos al terminar cualquier micro-sprint de **20 minutos** para p
     <label><strong>Modo:</strong><br/>
     <select id="ho-mode" style="width:100%;padding:0.4rem;margin-top:0.2rem;">
       <option value="LOC">[LOC] Local</option>
+      <option value="LOC-PC">[LOC-PC] PC Local (GTX 1050 / CPU 16GB+)</option>
+      <option value="LOC-AND">[LOC-AND] Móvil Android (Termux + Vulkan)</option>
+      <option value="AGENT">[AGENT] Delegación Pre-Flight + Tests</option>
       <option value="MOB">[MOB] Móvil / Lectura</option>
       <option value="PREP">[PREP] Pre-Flight</option>
       <option value="CLD">[CLD] Cloud GPU</option>
-      <option value="LAB">[LAB] Databricks Sandbox</option>
+      <option value="LAB">[LAB] Sandbox (Databricks / Colab)</option>
     </select></label>
   </p>
   <p>

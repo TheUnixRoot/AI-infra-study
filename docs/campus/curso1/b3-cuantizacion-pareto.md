@@ -6,6 +6,9 @@
 
 > **Datos ilustrativos (no medidos).** Las cifras del diagrama y del ejercicio B3.4-A son hipotéticas y sirven solo para practicar el cálculo de coste y Pareto. Los resultados reales saldrán de `[CLD]` Cloud-3 y se guardarán en `artifacts/`.
 
+!!! tip "Laboratorio hermano a 0 € (`B3-Edge`, Curso 3)"
+    Antes de alquilar `Cloud-3` (`H100`), puedes practicar cuantización avanzada en tu propio hardware con el **[Curso 3 · Edge-AI Sub-2-Bit (`E2`–`E3`)](../curso3/e2-ptq-hadamard-gptq.md)**: rotación Hadamard (`FHT`), `GPTQ` con inversa Hessiana en CPU (`g128`, `1.725 bpp`) sobre `Qwen3.5-2B` y `Gemma 4 E2B`, y evaluación de frontera de Pareto con `mWh/token` y `KLD`.
+
 ```mermaid
 flowchart LR
     FP16["Ejemplo ilustrativo: BF16\n420 tok/s · Tool Acc 96.5%\nCoste: USD 1.98 / 1M"] --> PARETO{"Filtro Calidad >= 95%"}

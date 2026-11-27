@@ -36,6 +36,6 @@ flowchart LR
 | **Bloque 4** | `B4.1` TP/PP/DP · `B4.2` MoE/EP · `B4.3` PDD/LMCache · `B4.4` `nccl-tests` | ⬜ `[MOB]` / `[CLD]` | [Abrir Bloque 4 →](b4-paralelismo-moe-nccl.md) |
 | **Bloque 5** | `B5.1` Benchmarking · `B5.2` DCGM/Xid · `B5.3` Megatron/MFU · `B5.4` K8s/MIG | ⬜ `[LOC]` / `[CLD]` | [Abrir Bloque 5 →](b5-cluster-benchmarking.md) |
 
-- **Manual PDF del Curso 1 (21 pág.):** [Descargar `Curso_1_AI_Infrastructure_GPU.pdf`](../../pdf/Curso_1_AI_Infrastructure_GPU.pdf)
+- **Manual PDF del Curso 1:** [Descargar `Curso_1_AI_Infrastructure_GPU.pdf`](../../pdf/Curso_1_AI_Infrastructure_GPU.pdf)
 - **Playbook maestro original:** [Leer `00-master-playbook.md`](../../temario/00-master-playbook.md)
 - **Resultados medidos reales:** [Ver `INFORME_RESULTADOS.md`](../../../INFORME_RESULTADOS.md)

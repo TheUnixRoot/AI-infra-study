@@ -1,5 +1,5 @@
-site_name: AI Infra & Agentic MLOps · Campus
-site_description: Campus técnico de nivel Máster — AI Infrastructure (GPU/CUDA/Serving) y Enterprise Agentic MLOps (Databricks/MLflow/K8s/SRE)
+site_name: AI Infra, Agentic MLOps & Edge-AI · Campus
+site_description: Campus técnico de nivel Máster — AI Infrastructure (GPU/CUDA/Serving), Enterprise Agentic MLOps (Databricks/MLflow/K8s/SRE) y Edge-AI Sub-2-Bit (Hadamard/GPTQ/CUDA sm_61/Vulkan GLSL)
 site_url: https://theunixroot.github.io/AI-infra-study/
 repo_url: https://github.com/TheUnixRoot/AI-infra-study
 repo_name: TheUnixRoot/AI-infra-study
@@ -68,6 +68,14 @@ nav:
       - B3 · Seldon, Istio, ArgoCD y Crossplane: docs/campus/curso2/b3-serving-gitops-crossplane.md
       - B4 · SRE SLOs, GameDay y Multi-Región: docs/campus/curso2/b4-sre-slos-multiregion.md
       - Playbook Maestro (Curso 2): docs/temario/01-agentic-mlops-playbook.md
+  - "Curso 3 · Edge-AI":
+      - Portal del Curso 3: docs/campus/curso3/index.md
+      - E0–E1 · Infra, mWh/tok y Baseline: docs/campus/curso3/e0-e1-infra-baseline.md
+      - E2 · Packing, Hadamard y GPTQ CPU: docs/campus/curso3/e2-ptq-hadamard-gptq.md
+      - E3 · Gemma 4 E2B y Calidad Real: docs/campus/curso3/e3-gemma4-evals-pareto.md
+      - E4 · Kernels CUDA sm_61 y Vulkan: docs/campus/curso3/e4-kernels-cuda-vulkan.md
+      - E5–E6 · Casa <8W, UMA y Bonus QAT: docs/campus/curso3/e5-e6-edge-server-logfit-qat.md
+      - Playbook Maestro (Curso 3): docs/temario/03-edge-ai-ternary-playbook.md
   - Labs y Resultados:
       - Informe GTX 1050 (Resultados Reales): INFORME_RESULTADOS.md
       - B1.1 Strides y .contiguous(): b1_1_strides/README.md

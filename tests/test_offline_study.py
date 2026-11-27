@@ -218,6 +218,7 @@ class TestDocsAndSiteHygiene(unittest.TestCase):
             "docs/temario/00-master-playbook.md",
             "docs/temario/01-agentic-mlops-playbook.md",
             "docs/temario/02-tronco-comun-y-itinerarios.md",
+            "docs/temario/03-edge-ai-ternary-playbook.md",
         ):
             self.assertTrue((ROOT / doc).exists(), f"Missing syllabus file: {doc}")
             self.assertIn(doc, mk)
@@ -232,9 +233,11 @@ class TestDocsAndSiteHygiene(unittest.TestCase):
             pdf_dir / "master_ai_infra_y_mlops.typ",
             pdf_dir / "curso1_ai_infra.typ",
             pdf_dir / "curso2_agentic_mlops.typ",
+            pdf_dir / "curso3_edge_ai.typ",
             pdf_dir / "sections" / "00_tronco_comun.typ",
             *[pdf_dir / "sections" / f"c1_b{i}.typ" for i in range(1, 6)],
             *[pdf_dir / "sections" / f"c2_b{i}.typ" for i in range(1, 5)],
+            *[pdf_dir / "sections" / f"c3_{s}.typ" for s in ("e0_e1", "e2", "e3", "e4", "e5_e6")],
         ]
         for typ_file in required_typ:
             self.assertTrue(typ_file.exists(), f"Missing Typst source: {typ_file}")
@@ -244,6 +247,7 @@ class TestDocsAndSiteHygiene(unittest.TestCase):
             "Master_AI_Infra_y_Agentic_MLOps.pdf",
             "Curso_1_AI_Infrastructure_GPU.pdf",
             "Curso_2_Agentic_Platform_MLOps.pdf",
+            "Curso_3_Edge_AI_Sub2Bit_Kernels.pdf",
         ]
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         for pdf_name in required_pdfs:
@@ -274,10 +278,22 @@ class TestDocsAndSiteHygiene(unittest.TestCase):
             "docs/campus/curso2/b2-evals-rag-observabilidad.md",
             "docs/campus/curso2/b3-serving-gitops-crossplane.md",
             "docs/campus/curso2/b4-sre-slos-multiregion.md",
+            "docs/campus/curso3/index.md",
+            "docs/campus/curso3/e0-e1-infra-baseline.md",
+            "docs/campus/curso3/e2-ptq-hadamard-gptq.md",
+            "docs/campus/curso3/e3-gemma4-evals-pareto.md",
+            "docs/campus/curso3/e4-kernels-cuda-vulkan.md",
+            "docs/campus/curso3/e5-e6-edge-server-logfit-qat.md",
         ]
         for rel in required_assets:
             self.assertTrue((ROOT / rel).exists(), f"Missing Campus file: {rel}")
             self.assertIn(rel, mk, f"Unregistered Campus file in mkdocs.yml: {rel}")
+
+        campus_js = (ROOT / "docs" / "javascripts" / "campus.js").read_text(encoding="utf-8")
+        for track_id in ('track: "tronco"', 'track: "c1"', 'track: "c2"', 'track: "c3"'):
+            self.assertIn(track_id, campus_js)
+        for sprint_id in ("C3-E0.1", "C3-E1.4", "C3-E2.6", "C3-E3.5", "C3-E4.7", "C3-E5.4", "C3-E6.3"):
+            self.assertIn(sprint_id, campus_js)
 
         files = set(
             subprocess.check_output(
