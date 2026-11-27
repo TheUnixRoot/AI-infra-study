@@ -1,0 +1,121 @@
+{
+  "gpu": {
+    "name": "NVIDIA GeForce GTX 1050",
+    "vram_total": "2048 MiB",
+    "compute_cap": "6.1",
+    "driver": "581.57"
+  },
+  "prism_rev": "43f31f4",
+  "prompts": [
+    {
+      "id": "code_py_quicksort",
+      "category": "code",
+      "prompt": "Write a concise Python function `binary_search(arr, target)` returning the index or -1. Output code only.",
+      "outputs": {
+        "N0_Q4_K_M": "[Start thinking]\n\nThe user wants a concise Python function for binary search that returns the index of a target value in a sorted array, or -1 if not found.\n\nKey requirements:\n1. Binary search algorithm\n2. Return index or -1\n3. Concise code\n\nLet me write a clean, efficient implementation:\n\n```python\ndef binary_search(arr, target):\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid]",
+        "N2_twn": "[Start thinking]\n\n00  00   or  or 0000 or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or 00000000000000000000000000000000000000000000000000000000000000000000000",
+        "N3_gptq": "[Start thinking]\n\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.\n1.",
+        "N4_Bonsai2": "[Start thinking]\n\nThe user wants a concise Python function for binary search that returns the index or -1 if not found.\n[End thinking]\n\n```python\ndef binary_search(arr, target):\n    left = 0\n    right = len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1\n```"
+      }
+    },
+    {
+      "id": "code_py_lru",
+      "category": "code",
+      "prompt": "Write a Python class using collections.OrderedDict implementing get(k) and put(k,v) for a capacity-bounded LRU cache.",
+      "outputs": {
+        "N0_Q4_K_M": "[Start thinking]\n\nThe user wants me to create a Python class that implements a capacity-bounded LRU (Least Recently Used) cache using collections.OrderedDict. This is a common data structure pattern for implementing LRU cache.\n\nKey requirements:\n1. Use collections.OrderedDict\n2. Implement get(k) - retrieve value for key\n3. Implement put(k,v) - insert or update key-value pair\n4. Implement capacity-bounded - have a maximum size limit\n5. Implement LRU eviction policy - remove least recently used entries when capacity is reached\n\nLet me write a complete implementation with proper documentation and",
+        "N2_twn": "[Start thinking]\n\n000 or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or",
+        "N3_gptq": "",
+        "N4_Bonsai2": "[Start thinking]\n\nThe user wants me to create a Python class that implements a capacity-bounded LRU cache using collections.OrderedDict. This is a common pattern for implementing cache systems.\n\nKey requirements:\n1. Use OrderedDict to maintain insertion order\n2. Implement get(k) - retrieve value if exists, return None if not\n3. Implement put(k,v) - store value if not exists, update if exists\n4. Maintain capacity (LRU - Least Recently Used)\n5. When a slot is full, evict the least recently used item\n\nI'll need to:\n- Keep track of all cached items\n- Maintain"
+      }
+    },
+    {
+      "id": "code_sql_top3",
+      "category": "code",
+      "prompt": "Write an ANSI SQL query returning the top 3 departments by average employee salary from tables employees(id, dept_id, salary) and departments(id, name).",
+      "outputs": {
+        "N0_Q4_K_M": "[Start thinking]\n\nThis is a straightforward SQL query question. I need to write an ANSI SQL query that:\n1. Returns the top 3 departments by average employee salary\n2. Uses the employees table (id, dept_id, salary)\n3. Uses the departments table (id, name)\n4. Returns the department name\n\nThe query needs to:\n- Join employees with departments\n- Calculate the average salary per department\n- Order by average salary\n- Limit to top 3\n\nLet me write this query:\n\n```sql\nSELECT d.name, AVG(e.salary) as avg_salary\nFROM employees e\nJOIN departments d",
+        "N2_twn": "[Start thinking]\n\n00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "N3_gptq": "[Start thinking]\n\nWrite an ANSI SQL query to return the top 3 departments by average employee salary.\nWrite an ANSI SQL query to return the top 3 departments by average employee salary.\nWrite an ANSI SQL query to return the top 3 departments by average employee salary.\nWrite an ANSI SQL query to return the top 3 departments by average employee.\nWrite an ANSI SQL query to return the top 3 departments by average employee.\nWrite an ANSI SQL query to return the top 3 departments by average employee.\nWrite an ANSI SQL query to return the top 3 departments by average employee.\nWrite an ANSI SQL quer",
+        "N4_Bonsai2": "[Start thinking]\n\nThe user wants an ANSI SQL query that:\n1. Joins the employees table with the departments table\n2. Calculates the average salary per department\n3. Returns the top 3 departments by average salary\n\nI need to use:\n- JOIN to connect employees and departments\n- AVG() to calculate average salary\n- ORDER BY to sort by average salary\n- LIMIT or TOP to get top 3 results\n\nLet me write a clear query with proper syntax.\n[End thinking]\n\n```sql\nSELECT \n    d.name AS department_name,\n    AVG(e.salary) AS average_salary\nFROM \n    employees e\nJOIN"
+      }
+    },
+    {
+      "id": "code_cpp_raii",
+      "category": "code",
+      "prompt": "Show a 10-line C++ RAII wrapper around FILE* with non-copyable semantics.",
+      "outputs": {
+        "N0_Q4_K_M": "[Start thinking]\n\nThe user wants a 10-line C++ RAII wrapper around FILE* with non-copyable semantics. This is a common pattern for resource management in C++.\n\nLet me think about what this means:\n1. RAII (Resource Acquisition Is Initialization) - resource management through class initialization\n2. FILE* wrapper - needs to wrap the FILE* pointer\n3. Non-copyable - needs to prevent copying (typically using SFINAE or noexcept)\n4. 10 lines - this is quite restrictive\n\nLet me create a class that:\n- Wraps FILE*\n- Prevents copying\n- Uses RA",
+        "N2_twn": "[Start thinking]\n\n0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "N3_gptq": "[Start thinking]\n\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n10\n1",
+        "N4_Bonsai2": "[Start thinking]\n\nThe user wants a 10-line C++ RAII wrapper around FILE* with non-copyable semantics. This is a common pattern for file handling where you want to avoid copying the file pointer or file object.\n\nKey requirements:\n1. 10 lines of code\n2. RAII (Resource Acquisition Is Initialization) pattern\n3. Non-copyable semantics (no copies of FILE* or FILE)\n4. Wrapper around FILE*\n\nLet me create a clean, minimal implementation:\n\n```cpp\n#include <fstream>\n#include <string>\n#include <memory>\n\nclass FileWrapper {\nprivate:"
+      }
+    },
+    {
+      "id": "json_gpu_spec",
+      "category": "json",
+      "prompt": "Return ONLY valid JSON with keys `gpu`, `vram_gb`, `quant` describing NVIDIA GTX 1050 2GB running PQ2_0.",
+      "outputs": {
+        "N0_Q4_K_M": "[Start thinking]\n\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Target: NVIDIA GTX 1050 2GB.\n    *   Specific Configuration: PQ2_0 (Quantization level).\n    *   Output Format: Valid JSON.\n    *   Required Keys: `gpu`, `vram_gb`, `quant`.\n    *   Constraint: Return ONLY valid JSON (no markdown code blocks, no explanations, no extra text).\n\n2.  **Determine Values:**\n    *   `gpu`: \"NVIDIA GTX 1050 2GB\" (or",
+        "N2_twn": "[Start thinking]\n\n00   00   0  00  00  or or or in 0000 or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or",
+        "N3_gptq": "",
+        "N4_Bonsai2": "[Start thinking]\n\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Output format: ONLY valid JSON.\n    *   Keys required: `gpu`, `vram_gb`, `quant`.\n    *   Content description: NVIDIA GTX 1050 2GB running PQ2_0.\n\n2.  **Determine Values:**\n    *   `gpu`: \"NVIDIA GTX 1050\" (or similar identifier).\n    *   `vram_gb`: 2 (The prompt specifies 2GB).\n    *   `quant`: \"PQ2_0"
+      }
+    },
+    {
+      "id": "json_api_err",
+      "category": "json",
+      "prompt": "Return ONLY valid JSON representing an HTTP 429 error object with fields `error`, `retry_after_sec`, `details`.",
+      "outputs": {
+        "N0_Q4_K_M": "[Start thinking]\n\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Input: None (implicit instruction).\n    *   Output: A JSON object.\n    *   Content: HTTP 429 error object.\n    *   Fields required: `error`, `retry_after_sec`, `details`.\n    *   Constraint: Return ONLY valid JSON. No markdown code blocks (unless implied by \"ONLY valid JSON\", but usually raw text is safer for strict JSON parsing), no explanations, no markdown formatting like ```json ... ```.\n\n2.  **Determine the Structure:**\n    *   Root",
+        "N2_twn": "[Start thinking]\n\n00  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "N3_gptq": "",
+        "N4_Bonsai2": "[Start thinking]\n\nThe user wants me to return a JSON object representing an HTTP 429 error with specific fields:\n- error\n- retry_after_sec\n- details\n\nA HTTP 429 error typically indicates a rate limit exceeded. I need to create a valid JSON structure with these fields.\n\nLet me create the JSON object:\n[End thinking]\n\n```json\n{\n  \"error\": \"Rate limit exceeded\",\n  \"retry_after_sec\": 300,\n  \"details\": \"Your request was too frequent. Please try again later.\"\n}\n```"
+      }
+    },
+    {
+      "id": "logic_trains",
+      "category": "logic",
+      "prompt": "A train travels 120 km in 1.5 hours, stops 30 minutes, then travels 90 km in 1 hour. What is its overall average speed in km/h?",
+      "outputs": {
+        "N0_Q4_K_M": "[Start thinking]\n\nHere's a thinking process that leads to the solution:\n\n1.  **Analyze the Request:**\n    *   **Given:**\n        *   Trip 1: Distance = 120 km, Time = 1.5 hours.\n        *   Stop: Duration = 30 minutes (0.5 hours).\n        *   Trip 2: Distance = 90 km, Time = 1 hour.\n    *   **Goal:** Calculate the *overall average speed* in km/h.\n\n2.  **Recall the Formula for Average Speed:**\n    *   Average Speed",
+        "N2_twn": "[Start thinking]\n\n00  or or  or  and 1.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "N3_gptq": "[Start thinking]\n\n1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.5 hours, 1.",
+        "N4_Bonsai2": "[Start thinking]\n\nHere's my thought process for solving this problem:\n\n1.  **Analyze the Request:**\n    *   **Given:**\n        *   Distance 1 ($d_1$) = 120 km\n        *   Time 1 ($t_1$) = 1.5 hours\n        *   Stop time ($t_{stop}$) = 30 minutes\n        *   Distance 2 ($d_2$) = 90 km\n        *   Time 2 ($t_2$) = 1 hour\n    *   **Goal:** Calculate the overall average"
+      }
+    },
+    {
+      "id": "logic_syllogism",
+      "category": "logic",
+      "prompt": "All tensors in weight_names are PQ2_0. `blk.0.ssm_out.weight` is in weight_names. Can `blk.0.ssm_out.weight` be F32? Answer Yes or No and explain in one sentence.",
+      "outputs": {
+        "N0_Q4_K_M": "[Start thinking]\n\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Input: A statement about PyTorch tensors in `weight_names` being `PQ2_0`.\n    *   Specific tensor: `blk.0.ssm_out.weight`.\n    *   Question: Can `blk.0.ssm_out.weight` be F32?\n    *   Constraint: Answer Yes or No and explain in one sentence.\n\n2.  **Identify Key Concepts:**\n    *   `weight_names`: This usually refers to a specific configuration or naming convention in a specific framework (likely a custom",
+        "N2_twn": "[Start thinking]\n\n00    or  or  or  or  or  or  or  or  or or or  or or or or  or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or or",
+        "N3_gptq": "",
+        "N4_Bonsai2": "[Start thinking]\n\nThinking Process:\n\n1.  **Analyze the Request:** The user is asking whether a specific tensor (`blk.0.ssm_out.weight`) can have a data type `F32` given the context that all tensors in `weight_names` are `PQ2_0`. The answer needs to be \"Yes\" or \"No\" followed by a one-sentence explanation.\n\n2.  **Analyze the Context:**\n    *   `weight_names` contains tensors named `PQ2_0`.\n    *   `blk.0.ssm_out.weight` is one of these tensors."
+      }
+    },
+    {
+      "id": "tech_hadamard",
+      "category": "tech",
+      "prompt": "Explain in two sentences why Sylvester-Walsh-Hadamard rotation reduces quantization error in neural weights.",
+      "outputs": {
+        "N0_Q4_K_M": "[Start thinking]\n\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   **Topic:** Sylvester-Walsh-Hadamard (SWH) rotation in neural networks.\n    *   **Task:** Explain *why* it reduces quantization error.\n    *   **Constraint:** Exactly two sentences.\n\n2.  **Understand the Concepts:**\n    *   **Quantization Error:** The difference between the original continuous value and its quantized approximation. In neural networks, this often relates to precision loss during weight updates or inference.\n    *   **Sylvester-Walsh-Hadamard Rotation",
+        "N2_twn": "[Start thinking]\n\n10   and 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.1. in1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.",
+        "N3_gptq": "",
+        "N4_Bonsai2": "[Start thinking]\n\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Topic: Sylvester-Walsh-Hadamard rotation (SWHR) in neural weights.\n    *   Task: Explain why it reduces quantization error.\n    *   Constraint: Exactly two sentences.\n\n2.  **Identify Key Concepts:**\n    *   Sylvester-Walsh-Hadamard rotation: This is likely referring to the Walsh-Hadamard transform or a related rotation used in neural network optimization (e.g., for weight initialization or training). However, the term \"Sylvester-Walsh-Hadamard"
+      }
+    },
+    {
+      "id": "tech_kv_cache",
+      "category": "tech",
+      "prompt": "Compute the KV cache size in MiB for 6 attention layers, 2 KV heads, head_dim 256, 4096 tokens in FP16.",
+      "outputs": {
+        "N0_Q4_K_M": "[Start thinking]\n\nHere's a thinking process that leads to the KV cache size calculation:\n\n1.  **Understand the Goal:** The objective is to calculate the total KV cache size in MiB (Megabytes) for a specific configuration of an LLM (Large Language Model) or similar architecture.\n\n2.  **Identify the Parameters:**\n    *   Number of Attention Layers ($N_{layers}$): 6\n    *   Number of KV Heads ($N_{heads}$): 2\n    *   Head Dimension ($d_{k}$ or $d_{v}$): 256 (This applies to both KV",
+        "N2_twn": "[Start thinking]\n\n10    2  2   2  1000  or  200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "N3_gptq": "",
+        "N4_Bonsai2": "[Start thinking]\n\nHere's my thought process for computing the KV cache size:\n\n1.  **Understand the Goal:** The objective is to calculate the total size of the KV cache (Key-Value cache) in Megabytes (MiB) for a specific set of neural network parameters.\n\n2.  **Identify the Inputs:**\n    *   Number of attention layers ($L$): 6\n    *   Number of KV heads ($H$): 2\n    *   Head dimension ($d_{head}$): 256\n    *   Number of tokens ($T$): 4096"
+      }
+    }
+  ]
+}

@@ -119,9 +119,9 @@ Se verificó directamente sobre los binarios compilados de **`PrismML-Eng/llama.
 
 ---
 
-## 4. Escalera de ablación Hadamard: `N0 → N1 → N2 → N4` en `PQ2_0`
+## 4. Escalera de ablación Hadamard: `N0 → N1 → N2 → N3 → N4` en `PQ2_0`
 
-Para aislar cuánto aporta **únicamente** la transformación Hadamard frente al algoritmo de redondeo/optimización (y frente al entrenamiento QAT de Bonsai 2), se evaluó el mismo modelo base (`Qwen3.5-2B-F16.gguf`) empaquetado exactamente en el mismo formato **`PQ2_0` (`493,3 MiB`, `151 PQ2_0 + 169 F32`, `KV f16`)** mediante `make_bonsai_ablation.py` y `run_ablation_ladder.py`:
+Para aislar cuánto aporta **únicamente** la transformación Hadamard frente a la proyección RTN, a la compensación por Hessiano sin entrenamiento (**GPTQ**, `N3`) y al post-entrenamiento QAT de Bonsai 2 (`N4`), se evaluó el mismo modelo base (`Qwen3.5-2B-F16.gguf`) en `F16` sin empaquetar y empaquetado exactamente en **`PQ2_0` (`493,3 MiB`, `151 PQ2_0 + 169 F32`, `KV f16`)** mediante `make_bonsai_ablation.py`, `gptq_ternary.py` y `run_ablation_ladder.py`:
 
 ### 4.1 Test de Identidad en `F16` (verificación matemática antes de cuantizar)
 
@@ -133,9 +133,9 @@ Antes de cuantizar un solo peso, se verificó en `PrismML-Eng/llama.cpp` (`43f31
 | `F16 N1` (control identidad) | `v2`, `tied_output=true`, `block_size=1`, `sign_mode=identity` | 13,4057 | -0,000000 | 100,000 |
 | `F16 N2` (Hadamard doblada) | `v2`, `tied_output=true`, `block_size=512`, `sign_mode=explicit` (151 tensores rotados) | **13,4055** | **0,000000** | **99,951** |
 
-### 4.2 Resultados medidos `N1` vs `N2` en `PQ2_0` (`GTX 1050`, `ngl=99`)
+### 4.2 Resultados medidos `N1 → N2 → N3 → N4` (`GTX 1050`, `8 chunks × 512`)
 
-Al cuantizar con `llama-quantize PQ2_0 --output-tensor-type pq2_0 --token-embedding-type pq2_0 --tensor-type ssm_alpha=f32 --tensor-type ssm_beta=f32`, todos los escalones quedan empaquetados con los mismos `151 PQ2_0 + 169 F32` tensores (`493,3 MiB`):
+Al cuantizar con `llama-quantize PQ2_0 --output-tensor-type pq2_0 --token-embedding-type pq2_0 --tensor-type ssm_alpha=f32 --tensor-type ssm_beta=f32`, todos los escalones ternarios empaquetados comparten exactamente los mismos `151 PQ2_0 + 169 F32` tensores (`493,3 MiB`):
 
 | Nivel | Variante | Tamaño (MiB) | `pp512` (tok/s) | `tg128` (tok/s) | PPL (`8 chunks`) | Mean KLD | SameTop (%) | Lectura |
 | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | :--- |
@@ -143,17 +143,20 @@ Al cuantizar con `llama-quantize PQ2_0 --output-tensor-type pq2_0 --token-embedd
 | **N1a** | `N1` sin Hadamard (`d = amax` nativo `PQ2_0`) | 493,3 | 660,28 | 68,72 | 3.494.603 | 12,5837 | 0,00 | `d=amax` deja ~90 % de ceros; colapso total |
 | **N2a** | `N2` con Hadamard (`d = amax` nativo `PQ2_0`) | 493,3 | 779,23 | 69,50 | 2.797.352 | 12,4026 | 0,00 | Hadamard sola **no basta** con `d=amax` sin calibrar |
 | **N1b** | `N1` sin Hadamard + **TWN** MSE-óptimo (`g128`) | 493,3 | 652,98 | 67,88 | 19.995 | 7,3286 | 1,23 | Proyección óptima por bloque baja PPL `175×`, pero los *outliers* siguen dominando |
-| **N2b** | `N2` **con Hadamard** + **TWN** MSE-óptimo (`g128`) | 493,3 | **779,09** | **69,94** | **6.992** | **6,3001** | **4,56** | Hadamard aplana *outliers* (**2,86× menos PPL**, **3,7× SameTop** frente a `N1b`), insuficiente sin GPTQ/QAT |
-| **N3** | `Hadamard + GPTQ` (pendiente) | 493,3 | — | — | *pendiente* | *pendiente* | *pendiente* | Próximo paso: compensación por Hessiano sin QAT |
-| **N4** | `Ternary-Bonsai-2-2B PQ2_0` (PrismML) | 493,3 | 769,51 | **70,10** | **25,48** | **0,5238** | **64,46** | Receta Caltech + post-entrenamiento TPU (especialmente sobre `token_embd` tied 248k) |
+| **N2b** | `N2` **con Hadamard** + **TWN** MSE-óptimo (`g128`) | 493,3 | 779,09 | 69,94 | 6.992 | 6,3001 | 4,56 | Hadamard aplana *outliers* (**2,86× menos PPL**, **3,7× SameTop** frente a `N1b`) |
+| **N3 (F16)** | `Hadamard + GPTQ` en **F16 sin empaquetar** (`ngl=0`) | 3600,8 | 237,43 | 4,64 | **58,35** | **1,5029** | **47,75** | Baseline F16 con pesos GPTQ ternarios sin empaquetado de bits (`15×` más lento que GPU `PQ2_0`) |
+| **N3 (PQ2_0)** | `Hadamard + GPTQ` en **`PQ2_0`** (`ngl=99`) | 493,3 | **781,11** | **69,58** | **58,37** | **1,5032** | **47,60** | GPTQ recorta PPL **`120×`** frente a `N2b` (`6.992 → 58,37`) con pérdida casi nula al empaquetar (`+0,023` PPL) |
+| **N3 (`embd Q6_K`)** | Igual que `N3`, re-empaquetando `token_embd` GPTQ en `Q6_K` (`ngl=99`) | 762,4 | 776,04 | 50,22 | 58,44 | 1,5039 | 47,70 | Verifica que `PQ2_0` en el embedding ya ternarizado no pierde calidad y evita penalizar `tg128` |
+| **N4** | `Ternary-Bonsai-2-2B PQ2_0` (PrismML) | 493,3 | 769,51 | **70,10** | **25,48** | **0,5238** | **64,46** | Receta Caltech + post-entrenamiento TPU (cierra el hueco `58,37 → 25,48` y recupera el chat) |
 
 ![Escalera de ablación Hadamard en PQ2_0](../artifacts/b3_1_ablation_ladder.png)
 
-### Por qué `d = amax` colapsa incluso con Hadamard y qué demuestra `TWN`
+### 4.3 Qué demuestra `N3` (GPTQ puro) y el duelo determinista de 10 prompts
 
-1. En `PrismML-Eng/llama.cpp` (`ggml/src/ggml-quants.c`, `quantize_row_pq2_0_ref`), `PQ2_0` fija la escala de cada bloque de 128 pesos a **`d = amax`** y redondea `round(w / amax)`. Sobre pesos gaussianos o rotados sin re-entrenar (`amax ~ 3σ`), el umbral efectivo `0,5·amax` anula ~90 % de los pesos y sobreescala el resto, provocando colapso tanto en `N1a` (`3,49M`) como en `N2a` (`2,80M`).
-2. Al pre-proyectar cada bloque de 128 pesos a la retícula ternaria de **mínimo error cuadrático (TWN)** —eligiendo $k^* = \arg\max_k \frac{(\sum_{j \le k} |w_{(j)}|)^2}{k}$ y $d^* = \frac{1}{k^*}\sum_{j \le k^*}|w_{(j)}|$ en FP16 antes de empaquetar con `PQ2_0`—, `N1b` cae `175×` (`3,49M → 20k`) y **Hadamard (`N2b`) recorta otro `2,86×` adicional (`19.995 → 6.992`, `KLD 7,33 → 6,30`, `SameTop 1,23 % → 4,56 %`)**.
-3. Además, proteger `ssm_alpha.weight` y `ssm_beta.weight` en `F32` (las puertas recurrentes `16×2048` de Gated DeltaNet) iguala exactamente el reparto `151 PQ2_0 + 169 F32` de `Bonsai 2`. Aun así, con redondeo directo sin Hessiano (`N2b`) la PPL sigue en `6.992` (salida incoherente en `llama-cli`), demostrando que **Hadamard es condición necesaria pero no suficiente**: la recuperación de `6.992 → 25,48` exige optimización conjunta entre capas (GPTQ `N3` y/o QAT + destilación en TPU de `N4`).
+1. **Por qué `d = amax` colapsa y qué aporta `TWN` (`N1 → N2`):** en `PrismML-Eng/llama.cpp` (`ggml/src/ggml-quants.c`, `quantize_row_pq2_0_ref`), `PQ2_0` fija la escala de cada bloque de 128 pesos a **`d = amax`**, anulando ~90 % de los pesos y provocando colapso tanto en `N1a` (`3,49M`) como en `N2a` (`2,80M`). Al pre-proyectar cada bloque a la retícula ternaria de mínimo error cuadrático (**TWN**, $k^* = \arg\max_k \frac{(\sum_{j \le k} |w_{(j)}|)^2}{k}$, $d^* = \frac{1}{k^*}\sum_{j \le k^*}|w_{(j)}|$), `N1b` baja `175×` (`19.995`) y Hadamard (`N2b`) recorta otro `2,86×` (`6.992`).
+2. **El salto de GPTQ secuencial (`N2b → N3`):** `gptq_ternary.py` ejecuta la propagación capa por capa (18 capas híbridas *Gated DeltaNet* + 6 capas *GQA*) en `CUDA FP16/FP32` sobre la GTX 1050 (2 GB VRAM), acumulando $H = 2 X^T X + \lambda I$ sobre `64 chunks × 512 tokens` (`32.768 tokens` de WikiText-2 no solapados + código del repo) e invirtiendo por Cholesky por bloques de `128` con `damp = 0,01` y proyección dinámica TWN. Compensar el error entre pesos consecutivos desploma la PPL **`119,8×` (`6.992 → 58,37`)**, reduce `Mean KLD` de `6,30` a `1,50` y multiplica `SameTop` **`10,4×` (`4,56 % → 47,60 %`)**.
+3. **Empaquetado `PQ2_0` casi sin pérdida frente al baseline F16 (`N3 F16` vs `N3 PQ2_0`):** comparar `qwen3.5-2b-F16-N3-gptq.gguf` (`ngl=0`, `PPL = 58,3471`, `SameTop = 47,75 %`) contra `qwen3.5-2b-N3-gptq-PQ2_0.gguf` (`ngl=99`, `PPL = 58,3700`, `SameTop = 47,60 %`) demuestra que el empaquetado de 2 bits de `PQ2_0` introduce solo `+0,023` de PPL (`0,04 %`), mientras reduce el peso `7,3×` (`3600,8 → 493,3 MiB`) y acelera la decodificación **`15,0×` (`4,64 → 69,58 tok/s`)**. Proteger `ssm_alpha.weight` y `ssm_beta.weight` en `F32` iguala exactamente la topología `151 PQ2_0 + 169 F32` de `Bonsai 2`.
+4. **Duelo de 10 prompts (`--temp 0 --seed 42`, `artifacts/b3_1_prompt_duel.json`):** pese a rozar el `48 %` de coincidencia Top-1 token a token en WikiText-2, la ternarización PTQ sin ajuste de chat (`N3_gptq`, y también `N3_f16` en el *sanity prompt*) sigue rompiéndose en generación autorregresiva instruct: en 6 de 10 prompts (`code_py_lru`, `json_gpu_spec`, `json_api_err`, `logic_syllogism`, `tech_hadamard`, `tech_kv_cache`) emite `<|im_end|>` inmediato (`""`) tras `[Start thinking]`, y en los otros 4 entra en bucles repetitivos (`"1.\n1.\n..."`, `"10\n10\n..."`, eco del prompt SQL o `"1.5 hours, 1.5 hours..."`). Por contraste, `N0 (Q4_K_M)` y **`N4 (Bonsai 2 PQ2_0)`** completan `10/10` respuestas con razonamiento estructurado y código Python/SQL/C++ o JSON válido. Esto demuestra empíricamente qué parte aporta el **post-entrenamiento QAT en TPU** de PrismML (`58,37 → 25,48` en PPL y estabilidad completa en diálogo e instrucciones).
 
 ---
 
@@ -174,13 +177,15 @@ Al cuantizar con `llama-quantize PQ2_0 --output-tensor-type pq2_0 --token-embedd
 docker run --rm --gpus all -v "$PWD":/work ai-infra-study:llama-cuda12.6 \
   python3 /work/b3_1_hadamard_bonsai/kv_ablation.py --base-dir /work/b3_1_hadamard_bonsai --artifacts-dir /work/artifacts
 
-# 5. Escalera de ablacion N1/N2 en PQ2_0 (Test de Identidad F16 + amax + TWN) y regeneracion de graficas
+# 5. Escalera de ablacion N1/N2/N3 en PQ2_0 (Identidad F16 + amax + TWN + GPTQ + duelo de 10 prompts)
 python b3_1_hadamard_bonsai/make_bonsai_ablation.py --mode n1 -o b3_1_hadamard_bonsai/models/qwen3.5-2b-F16-N1.gguf
 python b3_1_hadamard_bonsai/make_bonsai_ablation.py --mode n2 -o b3_1_hadamard_bonsai/models/qwen3.5-2b-F16-N2.gguf
 python b3_1_hadamard_bonsai/make_bonsai_ablation.py --mode n1 --snap twn -o b3_1_hadamard_bonsai/models/qwen3.5-2b-F16-N1-twn.gguf
 python b3_1_hadamard_bonsai/make_bonsai_ablation.py --mode n2 --snap twn -o b3_1_hadamard_bonsai/models/qwen3.5-2b-F16-N2-twn.gguf
+python b3_1_hadamard_bonsai/gptq_ternary.py --calib-chunks 64 --damp 0.01 --embd-snap gptq_head \
+  -i b3_1_hadamard_bonsai/models/Qwen3.5-2B-F16.gguf -o b3_1_hadamard_bonsai/models/qwen3.5-2b-F16-N3-gptq.gguf
 docker run --rm --gpus all -v "$PWD":/work ai-infra-study:llama-cuda12.6 \
-  python3 -u /work/b3_1_hadamard_bonsai/run_ablation_ladder.py
+  python3 -u /work/b3_1_hadamard_bonsai/run_ablation_ladder.py --run-prompt-duel
 python b3_1_hadamard_bonsai/plot_results.py
 ```
 
@@ -199,4 +204,4 @@ MODEL=~/models/Ternary-Bonsai-2-2B-PTQ1_0.gguf BIN=~/build-prism/bin/llama-bench
 - **PrismML PRs `#53` y `#54` (`calibration-basis mismatch`):** guarda de compatibilidad entre `llama-kv-mean-center` (calibrado sin rotación) y `LLAMA_ATTN_ROT_DISABLE=1` en inferencia.
 - **`ggml-org/llama.cpp` (`master`, commit `ca123ba`):** soporte oficial `prism.hadamard` + `Q2_0`, rotación Hadamard KV ([PR #21038](https://github.com/ggml-org/llama.cpp/pull/21038)) y reporte de regresiones tempranas en desplazamiento de contexto híbrido ([Issue #21383](https://github.com/ggml-org/llama.cpp/issues/21383)).
 - **Modelos evaluados en Hugging Face:** [`prism-ml/Ternary-Bonsai-2-2B-gguf`](https://huggingface.co/prism-ml/Ternary-Bonsai-2-2B-gguf) (`Q2_0`, `PQ2_0`, `PTQ1_0`), [`titan0115/Qwen3.5-2B`](https://huggingface.co/titan0115/Qwen3.5-2B) (`F16`, `Q4_K_M`, `TQ1_0`) y [`unsloth/Qwen3.5-2B-GGUF`](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF) (`UD-IQ2_XXS`).
-- **Artefactos reales generados en este repositorio:** [`artifacts/b3_1_summary.md`](../artifacts/b3_1_summary.md), [`artifacts/b3_1_results.json`](../artifacts/b3_1_results.json), [`artifacts/b3_1_results.csv`](../artifacts/b3_1_results.csv), [`artifacts/b3_1_kv_ablation.json`](../artifacts/b3_1_kv_ablation.json) y [`artifacts/b3_1_ablation_ladder.json`](../artifacts/b3_1_ablation_ladder.json).
+- **Artefactos reales generados en este repositorio:** [`artifacts/b3_1_summary.md`](../artifacts/b3_1_summary.md), [`artifacts/b3_1_results.json`](../artifacts/b3_1_results.json), [`artifacts/b3_1_results.csv`](../artifacts/b3_1_results.csv), [`artifacts/b3_1_kv_ablation.json`](../artifacts/b3_1_kv_ablation.json), [`artifacts/b3_1_ablation_ladder.json`](../artifacts/b3_1_ablation_ladder.json) y [`artifacts/b3_1_prompt_duel.json`](../artifacts/b3_1_prompt_duel.json).

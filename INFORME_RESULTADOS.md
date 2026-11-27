@@ -162,12 +162,15 @@ Resultados medidos en contenedor `ai-infra-study:llama-cuda12.6` (GTX 1050 2 GB 
 
 ![Ablación KV-Cache: Calidad vs Profundidad](artifacts/b3_1_kv_ablation.png)
 
-### Escalera de ablación Hadamard en `PQ2_0` (`N0 → N1 → N2 → N4`, `493,3 MiB`)
+### Escalera de ablación Hadamard en `PQ2_0` (`N0 → N1 → N2 → N3 → N4`, `493,3 MiB`)
 
 - **Test de Identidad F16 (`ngl=0`):** `F16 N1` (`block_size=1, identity`) obtiene `PPL = 13,4057` (`SameTop = 100,0 %`) y `F16 N2` (`block_size=512`, 151 tensores doblados incluyendo `token_embd` *tied* y `ssm_out`) obtiene `PPL = 13,4055` (`KLD = 0,0000`, `SameTop = 99,951 %`).
-- **En `PQ2_0` (`ngl=99`, `151 PQ2_0 + 169 F32`):**
+- **RTN (`amax` / `TWN`) en `PQ2_0` (`ngl=99`, `151 PQ2_0 + 169 F32`):**
   - Con el redondeo nativo `d = amax` de `quantize_row_pq2_0_ref`, colapsan tanto `N1a` sin rotación (`PPL = 3,49M`, `KLD = 12,58`) como `N2a` con Hadamard (`PPL = 2,80M`, `KLD = 12,40`).
-  - Pre-proyectando cada bloque de 128 pesos a la retícula ternaria MSE-óptima (**TWN**), `N1b` baja `175×` hasta `PPL = 19.995` (`KLD = 7,33`, `SameTop = 1,23 %`) y **Hadamard (`N2b`) reduce otra `2,86×` hasta `PPL = 6.992` (`KLD = 6,30`, `SameTop = 4,56 %`, `tg128 = 69,94 tok/s`)**, confirmando que Hadamard aplana *outliers* pero no sustituye a GPTQ (`N3`, pendiente) ni al QAT de `Bonsai 2` (`N4`, `PPL = 25,48`, `KLD = 0,52`).
+  - Pre-proyectando cada bloque de 128 pesos a la retícula ternaria MSE-óptima (**TWN**), `N1b` baja `175×` hasta `PPL = 19.995` (`KLD = 7,33`, `SameTop = 1,23 %`) y Hadamard (`N2b`) reduce otras `2,86×` hasta `PPL = 6.992` (`KLD = 6,30`, `SameTop = 4,56 %`, `tg128 = 69,94 tok/s`).
+- **Hadamard + GPTQ (`N3` F16 sin empaquetar vs `PQ2_0`) y duelo de prompts:**
+  - Con **GPTQ secuencial por Cholesky** (`64 × 512 tokens`, `damp = 0,01`) sobre el híbrido 18 *Gated DeltaNet* + 6 *GQA* (`gptq_ternary.py`), la PPL cae **`119,8×`** frente a `N2b`: **`N3 F16` sin empaquetar (`ngl=0`) obtiene `PPL = 58,35` (`KLD = 1,5029`, `SameTop = 47,75 %`, `4,64 tok/s`, `3600,8 MiB`)** y **`N3 PQ2_0` (`ngl=99`) obtiene `PPL = 58,37` (`KLD = 1,5032`, `SameTop = 47,60 %`, `69,58 tok/s`, `493,3 MiB`)**, confirmando que el empaquetado de 2 bits de `PQ2_0` añade solo `+0,023` PPL siendo `7,3×` más ligero y `15,0×` más rápido al decodificar.
+  - En el **duelo determinista de 10 prompts (`--temp 0`, [`artifacts/b3_1_prompt_duel.json`](artifacts/b3_1_prompt_duel.json))**, `N0 (Q4_K_M)` y **`N4 (Bonsai 2, PPL = 25,48, KLD = 0,52, SameTop = 64,46 %)`** generan respuestas estructuradas válidas en `10/10` prompts, mientras que `N3_gptq` colapsa en generación chat (`6/10` `<|im_end|>` vacíos y `4/10` bucles repetitivos), demostrando empíricamente la necesidad del post-entrenamiento **QAT en TPU** para estabilidad instruct a 1,58 bits.
 
 ![Escalera de ablación Hadamard en PQ2_0](artifacts/b3_1_ablation_ladder.png)
 
