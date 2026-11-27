@@ -81,10 +81,11 @@ nav:
       - B1.1 Strides y .contiguous(): b1_1_strides/README.md
       - B1.2 CUDA C++ (GEMM y Softmax): b1_2_cuda_gemm/README.md
       - B1.3 Profiling con nsys: b1_3_profiling/README.md
-      - B2.1 Calculadora KV-Cache: b2_1_kv_cache/README.md
-      - B2.2 vLLM vs SGLang ([PREP]): b2_2_vllm_vs_sglang/README.md
-  - Guías y Entorno:
-      - Configuración por SO (Win/Linux/WSL2/Docker/Termux): AGENTS.md
+      - B2.1 Calculadora KV-Cache: b2_1_kv_cache/README.md
+      - B2.2 vLLM vs SGLang ([PREP]): b2_2_vllm_vs_sglang/README.md
+      - B3.1b Hadamard y Bonsai 2: b3_1_hadamard_bonsai/README.md
+  - Guías y Entorno:
+      - Configuración por SO (Win/Linux/WSL2/Docker/Termux): AGENTS.md
 
 markdown_extensions:
   - tables

@@ -54,10 +54,11 @@ Estados: ✅ hecha y medida · 🟡 parcial · ⬜ pendiente. Modos: `[MOB]` lec
 
 | ID | Unidad | Modo | Estado | Práctica |
 | :--- | :--- | :---: | :---: | :--- |
-| B3.1 | Teoría de cuantización (FP8/INT4/NVFP4) | `[MOB]` | ⬜ | [Bloque 3](docs/campus/curso1/b3-cuantizacion-pareto.md) |
-| B3.2 | FP8 vs AWQ + KV-Cache FP8 | `[PREP]` `[CLD]` | ⬜ Cloud-3 | [Bloque 3](docs/campus/curso1/b3-cuantizacion-pareto.md) |
-| B3.3 | Speculative decoding | `[PREP]` `[CLD]` | ⬜ Cloud-3 | [Bloque 3](docs/campus/curso1/b3-cuantizacion-pareto.md) |
-| B3.4 | Evals de calidad y frontera de Pareto | `[PREP]` `[CLD]` | ⬜ Cloud-3 | [Bloque 3](docs/campus/curso1/b3-cuantizacion-pareto.md) |
+| B3.1 | Teoría de cuantización (FP8/INT4/NVFP4) | \[MOB]\ | ⬜ | [Bloque 3](docs/campus/curso1/b3-cuantizacion-pareto.md) |
+| B3.1b | Cuantización extrema con Hadamard: Qwen3.5-2B vs Ternary-Bonsai-2-2B | \[LOC]\ | ✅ Completado (Docker + KV A/B/C) | [\3_1_hadamard_bonsai/\](b3_1_hadamard_bonsai/README.md) |
+| B3.2 | FP8 vs AWQ + KV-Cache FP8 | \[PREP]\ \[CLD]\ | ⬜ Cloud-3 | [Bloque 3](docs/campus/curso1/b3-cuantizacion-pareto.md) |
+| B3.3 | Speculative decoding | \[PREP]\ \[CLD]\ | ⬜ Cloud-3 | [Bloque 3](docs/campus/curso1/b3-cuantizacion-pareto.md) |
+| B3.4 | Evals de calidad y frontera de Pareto | \[PREP]\ \[CLD]\ | ⬜ Cloud-3 | [Bloque 3](docs/campus/curso1/b3-cuantizacion-pareto.md) |
 
 #### [Bloque 4: Inferencia distribuida, MoE y redes](docs/campus/curso1/b4-paralelismo-moe-nccl.md)
 
@@ -130,6 +131,7 @@ Ediciones autocontenidas con infografías vectoriales, temario extendido, ejerci
 | B1.2 | `gemm_smem_tiled` (32×32) 11,7× más rápido que `naive` (281 GFLOP/s; incluye variante `16×16` pendiente de captura); cuBLAS 1627 GFLOP/s; softmax online 1,31× |
 | B1.3 | `pin_memory` 2,1× en H2D; paso total 1,01× (domina el cómputo sin fusionar: fusión pendiente en B1.4) |
 | B2.1 | Llama-3-8B FP16: 26 peticiones de 8k tokens en L40S, 55 en H100 |
+| B3.1b | Hadamard + QAT (`Bonsai-2 PQ2_0`, `493 MiB`): **`70,1 tok/s`** y `PPL 25,48` (`KLD 0,524`) frente al colapso de `TQ1_0` (`PPL 1,93M`); Hadamard KV `q4_0` conserva calidad (`+0,031` PPL) pero `KV F16` es `+30 %` más rápido a `d=4096` en Pascal `sm_61` |
 
 Detalle, tablas y limitaciones: [`INFORME_RESULTADOS.md`](INFORME_RESULTADOS.md).
 
@@ -164,6 +166,7 @@ con `sudo shutdown -h +90`.
 ├── b1_3_profiling/        # B1.3 antipatrones y nsys
 ├── b2_1_kv_cache/         # B2.1 calculadora de KV-cache
 ├── b2_2_vllm_vs_sglang/   # B2.2 comparativa vLLM vs SGLang + FlashInfer ([PREP])
+├── b3_1_hadamard_bonsai/  # B3.1b Hadamard: Qwen3.5-2B vs Ternary-Bonsai-2-2B (Docker + KV A/B/C)
 ├── artifacts/             # Salidas JSON/CSV/TXT reales generadas por los runners
 ├── tests/                 # Suite unitaria offline (sin GPU)
 ├── tools/                 # Generador del sitio estático (MkDocs + KaTeX)

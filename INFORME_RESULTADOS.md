@@ -1,8 +1,8 @@
-# Informe de resultados: prácticas B1.1, B1.2, B1.3 y B2.1
+# Informe de resultados: prácticas B1.1, B1.2, B1.3, B2.1 y B3.1b
 
 Learning path MLOps / ML Engineer (AI Infra). Repositorio: `TheUnixRoot/AI-infra-study`.
-Todas las cifras proceden de los artefactos de `artifacts/` generados por los runners del repo
-(commit `2e29363`). Ninguna es simulada salvo que se indique.
+Todas las cifras proceden de los artefactos de `artifacts/` generados por los runners reales del repo.
+Ninguna es simulada salvo que se indique explícitamente en analítica teórica.
 
 ## 1. Entorno de ejecución
 
@@ -13,6 +13,7 @@ Todas las cifras proceden de los artefactos de `artifacts/` generados por los ru
 | B1.1, B2.1 | Python 3.11 + PyTorch 2.14.1+cu126 en una venv del repo (Windows) |
 | B1.2 | Contenedor Docker Linux (`Dockerfile` del repo): CUDA 12.6 (nvcc 12.6.85), GPU por WSL2 |
 | B1.3 | Python 3.11 + PyTorch 2.14.1+cu126 (Windows) con Nsight Systems 2024.5.1 nativo de Windows |
+| B3.1b | Contenedor Docker CUDA 12.6 (`ai-infra-study:llama-cuda12.6`, `sm_61`): `ggml-org/llama.cpp` (`ca123ba`) y `PrismML-Eng/llama.cpp` (`43f31f4`) |
 
 ## 2. B1.1: Strides y coste de `.contiguous()` (PyTorch)
 
@@ -121,3 +122,44 @@ Los valores de Llama-3-8B coinciden con el cálculo manual (128 KiB/token).
 - Ampliar B1.3 con un bucle con más trabajo de CPU por paso, para que la pérdida de solapamiento CPU-GPU causada por
   `.item()` sea visible en el tiempo total.
 - Estudiar en B1.2 por qué `smem_tiled` se queda en ~17 % de cuBLAS (register blocking, vectorización).
+
+---
+
+## 8. B3.1b — Cuantización extrema con Hadamard y KV-Cache (`Qwen3.5-2B` vs `Ternary-Bonsai-2-2B`, Docker CUDA `sm_61`)
+
+Resultados medidos en contenedor `ai-infra-study:llama-cuda12.6` (GTX 1050 2 GB VRAM, driver `581.57`, `-lm none -fa on`, `wikitext-2` 8 chunks × 512 tokens frente a `Qwen3.5-2B F16`, y `llama-bench` `reps=3`):
+
+| Modelo | Quant | Tamaño (MiB) | Motor | `pp512` (tok/s) | `tg128` (tok/s) | VRAM Pico (MiB) | PPL | Mean KLD | SameTop (%) |
+| :--- | :--- | ---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Qwen3.5-2B | `F16` (`ngl=0`) | 3600,8 | `upstream` (`ca123ba`) | 281,11 | 5,69 | 1779,0 | 13,4057 | 0,0000 | 100,00 |
+| Qwen3.5-2B | `Q4_K_M` | 1211,9 | `prism` (`43f31f4`) | 732,29 | 36,21 | 1899,0 | 13,9723 | 0,0421 | 89,36 |
+| Qwen3.5-2B | `UD-IQ2_XXS` | 732,7 | `prism` (`43f31f4`) | 754,23 | 34,00 | 1430,0 | 25,9786 | 0,6836 | 58,53 |
+| Qwen3.5-2B | `TQ1_0` | 686,5 | `prism` (`43f31f4`) | 35,18 | 13,47 | 1114,0 | 1.931.838 | 11,9529 | 0,05 |
+| Ternary-Bonsai-2-2B | `Q2_0` | 521,4 | `prism` (`43f31f4`) | 771,06 | 67,00 | 1253,0 | 25,4773 | 0,5238 | 64,46 |
+| Ternary-Bonsai-2-2B | `PQ2_0` | 493,3 | `prism` (`43f31f4`) | 769,51 | **70,10** | 1226,0 | 25,4773 | 0,5238 | 64,46 |
+| Ternary-Bonsai-2-2B | `PTQ1_0` | 409,3 | `prism` (`43f31f4`) | 469,56 | 57,77 | 1180,0 | 25,4808 | **0,5233** | **64,80** |
+
+![Pareto calidad vs compresión](artifacts/b3_1_pareto_quality.png)
+
+![Throughput pp512 y tg128 en GTX 1050](artifacts/b3_1_speed_throughput.png)
+
+![Consumo real de memoria: Disco vs VRAM vs RSS](artifacts/b3_1_memory_footprint.png)
+
+### Hallazgos principales y ablación KV-Cache A/B/B0/C (`PrismML 43f31f4`)
+
+1. **Hadamard evita el colapso ternario:** `Qwen3.5-2B TQ1_0` colapsa (`PPL 1,93M`, `KLD 11,95`), mientras `Ternary-Bonsai-2-2B` (`Q2_0`/`PQ2_0`/`PTQ1_0`) mantiene `PPL ~25,48` (`KLD ~0,523`), superando en tamaño, KLD y en `> 2×` de decode a `UD-IQ2_XXS`.
+2. **Limitación `sm_61` en `PTQ1_0`:** en `mmq.cu` (`turing_mma_available`), el MMQ de `PTQ1_0` exige Turing+; en Pascal solo corre `mmvq-ptq1_0.cuh` ($\le 8$ columnas), obligando a `-b 8 -ub 8` en `llama-perplexity` para evitar OOM de desquantización `F16` en el `lm_head` compartido de 248k tokens (`PQ2_0` alcanza `70,1 tok/s` frente a `57,8 tok/s` en `PTQ1_0`).
+3. **KV-cache en `PQ2_0` (6 capas de atención completa + 18 recurrentes GatedDeltaNet):**
+   - **Calidad (`q4_0` vs `f16 = 25,4773`):** **Hadamard KV (`A`, `n_rot_k=256, n_rot_v=64`)** solo añade `+0,0311` PPL (`25,5083`) sin calibración externa; **Mean-Center KV (`B`, `LLAMA_ATTN_ROT_DISABLE=1` + `--kv-mean-center`)** añade `+0,0716` (`25,5489`), y **`q4_0` sin mitigar (`B0`)** sube a `+0,2181` (`25,6953`). La guarda del PR #53 rechaza mezclar el fichero de sesgo con rotación activa (`rc = 1`).
+   - **Velocidad en Pascal (`sm_61`):** la FWHT KV apenas cuesta `0,4–0,7 tok/s` frente a `q4_0` sin rotación (`67,97` vs `68,45` a `d=0`; `50,56` vs `51,30` a `d=4096`), pero **`KV F16` (`65,92 tok/s` a `d=4096`) bate a `KV q4_0` en `+30 %`** al evitar desquantizar `q4_0` en una GPU sin Tensor Cores para un ahorro de solo `34,5 MiB` (`48 MiB` vs `13,5 MiB` a 4k tokens).
+
+| Modelo | Modo | PPL | $\Delta$ PPL vs F16 | Mean KLD | `tg128` `d=0` | `tg128` `d=2048` | `tg128` `d=4096` |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `Bonsai2 PQ2_0` | **A. Hadamard KV (`q4_0`)** | 25,5083 | **+0,0311** | **0,5265** | 67,97 | 57,09 | 50,56 |
+| `Bonsai2 PQ2_0` | **B. Mean-Center (`q4_0`, `ROT_DISABLE=1`)** | 25,5489 | +0,0716 | 0,5272 | 68,45 *(sin rot)* | 57,50 *(sin rot)* | 51,30 *(sin rot)* |
+| `Bonsai2 PQ2_0` | **B0. Raw `q4_0` (sin mitig.)** | 25,6953 | +0,2181 | 0,5295 | — | — | — |
+| `Bonsai2 PQ2_0` | **C. Control KV `f16`** | **25,4773** | 0,0000 | **0,5238** | **69,85** | **67,77** | **65,92** |
+
+![Ablación KV-Cache: Calidad vs Profundidad](artifacts/b3_1_kv_ablation.png)
+
+Detalle completo, tabla completa por modelo (`PTQ1_0`, `Q4_K_M`, sonda `#21383`), explicación matemática y fuentes en [`b3_1_hadamard_bonsai/README.md`](b3_1_hadamard_bonsai/README.md).

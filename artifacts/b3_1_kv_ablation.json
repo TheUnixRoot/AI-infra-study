@@ -1,0 +1,541 @@
+{
+  "gpu": {
+    "name": "NVIDIA GeForce GTX 1050",
+    "vram_total": "2048 MiB",
+    "compute_cap": "6.1",
+    "driver": "581.57"
+  },
+  "prism_rev": "43f31f4",
+  "ppl_chunks": 8,
+  "ppl_ctx": 512,
+  "calib_chunks": 16,
+  "calib_source": "data/wikitext-2-raw/wiki.test.raw (lines 1500+, non-overlapping)",
+  "verifications": {
+    "step2_hadamard_rot_active": {
+      "rc": 0,
+      "rot_disable": false,
+      "n_rot_k": 256,
+      "n_rot_v": 64,
+      "kv_cache_line": "13.50 MiB (  4096 cells,   6 layers,  1/1 seqs), K (q4_0):    6.75 MiB, V (q4_0):    6.75 MiB",
+      "prompt_tok_s": 81.6,
+      "gen_tok_s": 56.6,
+      "relevant_lines": []
+    },
+    "step3_pr53_guard_rejected": {
+      "rc": 1,
+      "rot_disable": false,
+      "n_rot_k": 256,
+      "n_rot_v": 64,
+      "kv_cache_line": "13.50 MiB (  4096 cells,   6 layers,  1/1 seqs), K (q4_0):    6.75 MiB, V (q4_0):    6.75 MiB",
+      "prompt_tok_s": null,
+      "gen_tok_s": null,
+      "relevant_lines": [
+        "0.01.213.016 E load_kv_mean_center: bias file /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf was calibrated with the K-cache rotation inactive, but it is active for this context - recalibrate with matching cache settings (or set LLAMA_ATTN_ROT_DISABLE=1 consistently in both)",
+        "0.05.699.044 E load_kv_mean_center: bias file /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf was calibrated with the K-cache rotation inactive, but it is active for this context - recalibrate with matching cache settings (or set LLAMA_ATTN_ROT_DISABLE=1 consistently in both)"
+      ]
+    },
+    "step3_meancenter_rot_disabled_pass": {
+      "rc": 0,
+      "rot_disable": true,
+      "n_rot_k": 0,
+      "n_rot_v": 0,
+      "kv_cache_line": "13.50 MiB (  4096 cells,   6 layers,  1/1 seqs), K (q4_0):    6.75 MiB, V (q4_0):    6.75 MiB",
+      "prompt_tok_s": 85.4,
+      "gen_tok_s": 65.9,
+      "relevant_lines": [
+        "0.01.334.680 I load_kv_mean_center: loaded K-cache mean-centering bias for 6 / 6 layer(s) from /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf",
+        "0.05.557.975 I load_kv_mean_center: loaded K-cache mean-centering bias for 6 / 6 layer(s) from /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf"
+      ]
+    },
+    "llama_cli_128tok_pq2_e2e": {
+      "A_hadamard_kv_q4": {
+        "rc": 0,
+        "rot_disable": false,
+        "n_rot_k": 256,
+        "n_rot_v": 64,
+        "kv_cache_line": "13.50 MiB (  4096 cells,   6 layers,  1/1 seqs), K (q4_0):    6.75 MiB, V (q4_0):    6.75 MiB",
+        "prompt_tok_s": 570.7,
+        "gen_tok_s": 61.9,
+        "relevant_lines": []
+      },
+      "B_meancenter_kv_q4": {
+        "rc": 0,
+        "rot_disable": true,
+        "n_rot_k": 0,
+        "n_rot_v": 0,
+        "kv_cache_line": "13.50 MiB (  4096 cells,   6 layers,  1/1 seqs), K (q4_0):    6.75 MiB, V (q4_0):    6.75 MiB",
+        "prompt_tok_s": 515.0,
+        "gen_tok_s": 59.4,
+        "relevant_lines": [
+          "0.01.331.218 I load_kv_mean_center: loaded K-cache mean-centering bias for 6 / 6 layer(s) from /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf",
+          "0.05.758.621 I load_kv_mean_center: loaded K-cache mean-centering bias for 6 / 6 layer(s) from /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf"
+        ]
+      },
+      "C_control_kv_f16": {
+        "rc": 0,
+        "rot_disable": false,
+        "n_rot_k": 0,
+        "n_rot_v": 0,
+        "kv_cache_line": "48.00 MiB (  4096 cells,   6 layers,  1/1 seqs), K (f16):   24.00 MiB, V (f16):   24.00 MiB",
+        "prompt_tok_s": 570.3,
+        "gen_tok_s": 67.0,
+        "relevant_lines": []
+      }
+    },
+    "issue_21383_hybrid_probe": {
+      "long_prompt_4k_mode_A": {
+        "rc": 0,
+        "rot_disable": false,
+        "n_rot_k": 256,
+        "n_rot_v": 64,
+        "kv_cache_line": "13.50 MiB (  4096 cells,   6 layers,  1/1 seqs), K (q4_0):    6.75 MiB, V (q4_0):    6.75 MiB",
+        "prompt_tok_s": 700.8,
+        "gen_tok_s": 51.0,
+        "relevant_lines": []
+      },
+      "long_prompt_4k_mode_B": {
+        "rc": 0,
+        "rot_disable": true,
+        "n_rot_k": 0,
+        "n_rot_v": 0,
+        "kv_cache_line": "13.50 MiB (  4096 cells,   6 layers,  1/1 seqs), K (q4_0):    6.75 MiB, V (q4_0):    6.75 MiB",
+        "prompt_tok_s": 703.3,
+        "gen_tok_s": 52.6,
+        "relevant_lines": [
+          "0.01.382.505 I load_kv_mean_center: loaded K-cache mean-centering bias for 6 / 6 layer(s) from /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf",
+          "0.05.818.339 I load_kv_mean_center: loaded K-cache mean-centering bias for 6 / 6 layer(s) from /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf"
+        ]
+      },
+      "overflow_512_mode_A": {
+        "rc": 0,
+        "rot_disable": false,
+        "n_rot_k": 256,
+        "n_rot_v": 64,
+        "kv_cache_line": "1.69 MiB (   512 cells,   6 layers,  1/1 seqs), K (q4_0):    0.84 MiB, V (q4_0):    0.84 MiB",
+        "prompt_tok_s": 0.0,
+        "gen_tok_s": 0.0,
+        "relevant_lines": []
+      },
+      "overflow_512_mode_B": {
+        "rc": 0,
+        "rot_disable": true,
+        "n_rot_k": 0,
+        "n_rot_v": 0,
+        "kv_cache_line": "1.69 MiB (   512 cells,   6 layers,  1/1 seqs), K (q4_0):    0.84 MiB, V (q4_0):    0.84 MiB",
+        "prompt_tok_s": 0.0,
+        "gen_tok_s": 0.0,
+        "relevant_lines": [
+          "0.01.197.399 I load_kv_mean_center: loaded K-cache mean-centering bias for 6 / 6 layer(s) from /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf",
+          "0.05.429.464 I load_kv_mean_center: loaded K-cache mean-centering bias for 6 / 6 layer(s) from /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf"
+        ]
+      }
+    }
+  },
+  "models": [
+    {
+      "key": "bonsai2-2b-pq2_0",
+      "label": "Ternary-Bonsai-2-2B PQ2_0",
+      "file_mib": 493.3,
+      "calibration": {
+        "ok": true,
+        "rc": 0,
+        "bias_path": "bonsai2-2b-pq2_0-kv-bias.gguf",
+        "bias_bytes": 12672,
+        "summary_line": "0.17.430.707 I main: wrote K-cache mean-centering bias for 6 layer(s) to /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-pq2_0-kv-bias.gguf (measured with K rotation inactive)",
+        "error": null
+      },
+      "perplexity": {
+        "A_hadamard_kv_q4": {
+          "ppl": 25.50834,
+          "ppl_unc": 1.863324,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.526474,
+          "kld_median": 0.396304,
+          "kld_p99": 2.631112,
+          "same_top_pct": 64.461,
+          "ok": true,
+          "peak_rss_mib": 1063.6,
+          "peak_vram_mib": 863.0,
+          "delta_vram_mib": 697.0
+        },
+        "B_meancenter_kv_q4": {
+          "ppl": 25.548857,
+          "ppl_unc": 1.867817,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.527238,
+          "kld_median": 0.389784,
+          "kld_p99": 2.599515,
+          "same_top_pct": 64.412,
+          "ok": true,
+          "peak_rss_mib": 1063.3,
+          "peak_vram_mib": 878.0,
+          "delta_vram_mib": 712.0
+        },
+        "B0_norot_raw_q4": {
+          "ppl": 25.695337,
+          "ppl_unc": 1.880965,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.529486,
+          "kld_median": 0.391141,
+          "kld_p99": 2.624487,
+          "same_top_pct": 64.755,
+          "ok": true,
+          "peak_rss_mib": 1063.0,
+          "peak_vram_mib": 878.0,
+          "delta_vram_mib": 696.0
+        },
+        "C_control_kv_f16": {
+          "ppl": 25.477264,
+          "ppl_unc": 1.863703,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.523848,
+          "kld_median": 0.391428,
+          "kld_p99": 2.612753,
+          "same_top_pct": 64.461,
+          "ok": true,
+          "peak_rss_mib": 1057.7,
+          "peak_vram_mib": 882.0,
+          "delta_vram_mib": 700.0
+        }
+      },
+      "bench": {
+        "A_hadamard_kv_q4": {
+          "ok": true,
+          "by_depth": {
+            "0": {
+              "pp512_tok_s": 769.37,
+              "pp512_std": 0.5,
+              "tg128_tok_s": 67.97,
+              "tg128_std": 0.31
+            },
+            "2048": {
+              "pp512_tok_s": 691.56,
+              "pp512_std": 0.85,
+              "tg128_tok_s": 57.09,
+              "tg128_std": 0.76
+            },
+            "4096": {
+              "pp512_tok_s": 626.74,
+              "pp512_std": 0.81,
+              "tg128_tok_s": 50.56,
+              "tg128_std": 0.08
+            }
+          },
+          "peak_rss_mib": 666.5,
+          "peak_vram_mib": 1278.0,
+          "delta_vram_mib": 1096.0
+        },
+        "B_norot_kv_q4": {
+          "ok": true,
+          "by_depth": {
+            "0": {
+              "pp512_tok_s": 768.09,
+              "pp512_std": 1.16,
+              "tg128_tok_s": 68.45,
+              "tg128_std": 0.2
+            },
+            "2048": {
+              "pp512_tok_s": 691.84,
+              "pp512_std": 0.59,
+              "tg128_tok_s": 57.5,
+              "tg128_std": 0.27
+            },
+            "4096": {
+              "pp512_tok_s": 630.06,
+              "pp512_std": 0.99,
+              "tg128_tok_s": 51.3,
+              "tg128_std": 0.05
+            }
+          },
+          "peak_rss_mib": 665.2,
+          "peak_vram_mib": 1278.0,
+          "delta_vram_mib": 1096.0
+        },
+        "C_control_kv_f16": {
+          "ok": true,
+          "by_depth": {
+            "0": {
+              "pp512_tok_s": 767.45,
+              "pp512_std": 1.76,
+              "tg128_tok_s": 69.85,
+              "tg128_std": 0.19
+            },
+            "2048": {
+              "pp512_tok_s": 694.17,
+              "pp512_std": 1.44,
+              "tg128_tok_s": 67.77,
+              "tg128_std": 0.3
+            },
+            "4096": {
+              "pp512_tok_s": 628.79,
+              "pp512_std": 0.25,
+              "tg128_tok_s": 65.92,
+              "tg128_std": 0.13
+            }
+          },
+          "peak_rss_mib": 709.9,
+          "peak_vram_mib": 1316.0,
+          "delta_vram_mib": 1134.0
+        }
+      }
+    },
+    {
+      "key": "bonsai2-2b-ptq1_0",
+      "label": "Ternary-Bonsai-2-2B PTQ1_0",
+      "file_mib": 409.3,
+      "calibration": {
+        "ok": true,
+        "rc": 0,
+        "bias_path": "bonsai2-2b-ptq1_0-kv-bias.gguf",
+        "bias_bytes": 12672,
+        "summary_line": "0.41.667.266 I main: wrote K-cache mean-centering bias for 6 layer(s) to /work/b3_1_hadamard_bonsai/.build/logs/bonsai2-2b-ptq1_0-kv-bias.gguf (measured with K rotation inactive)",
+        "error": null
+      },
+      "perplexity": {
+        "A_hadamard_kv_q4": {
+          "ppl": 25.522336,
+          "ppl_unc": 1.864876,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.526633,
+          "kld_median": 0.395361,
+          "kld_p99": 2.613794,
+          "same_top_pct": 64.559,
+          "ok": true,
+          "peak_rss_mib": 917.9,
+          "peak_vram_mib": 676.0,
+          "delta_vram_mib": 494.0
+        },
+        "B_meancenter_kv_q4": {
+          "ppl": 25.535714,
+          "ppl_unc": 1.866642,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.527255,
+          "kld_median": 0.391088,
+          "kld_p99": 2.660176,
+          "same_top_pct": 64.608,
+          "ok": true,
+          "peak_rss_mib": 917.3,
+          "peak_vram_mib": 674.0,
+          "delta_vram_mib": 492.0
+        },
+        "B0_norot_raw_q4": {
+          "ppl": 25.73623,
+          "ppl_unc": 1.885758,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.528879,
+          "kld_median": 0.392443,
+          "kld_p99": 2.640027,
+          "same_top_pct": 65.392,
+          "ok": true,
+          "peak_rss_mib": 917.7,
+          "peak_vram_mib": 674.0,
+          "delta_vram_mib": 492.0
+        },
+        "C_control_kv_f16": {
+          "ppl": 25.480842,
+          "ppl_unc": 1.864384,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.523313,
+          "kld_median": 0.3917,
+          "kld_p99": 2.599303,
+          "same_top_pct": 64.804,
+          "ok": true,
+          "peak_rss_mib": 911.9,
+          "peak_vram_mib": 678.0,
+          "delta_vram_mib": 496.0
+        }
+      },
+      "bench": {
+        "A_hadamard_kv_q4": {
+          "ok": true,
+          "by_depth": {
+            "0": {
+              "pp512_tok_s": 466.47,
+              "pp512_std": 0.63,
+              "tg128_tok_s": 56.85,
+              "tg128_std": 0.04
+            },
+            "2048": {
+              "pp512_tok_s": 435.23,
+              "pp512_std": 0.77,
+              "tg128_tok_s": 49.1,
+              "tg128_std": 0.28
+            }
+          },
+          "peak_rss_mib": 609.9,
+          "peak_vram_mib": 1224.0,
+          "delta_vram_mib": 1042.0
+        },
+        "B_norot_kv_q4": {
+          "ok": true,
+          "by_depth": {
+            "0": {
+              "pp512_tok_s": 466.06,
+              "pp512_std": 0.7,
+              "tg128_tok_s": 57.31,
+              "tg128_std": 0.02
+            },
+            "2048": {
+              "pp512_tok_s": 435.67,
+              "pp512_std": 0.53,
+              "tg128_tok_s": 49.6,
+              "tg128_std": 0.22
+            }
+          },
+          "peak_rss_mib": 610.0,
+          "peak_vram_mib": 1224.0,
+          "delta_vram_mib": 1042.0
+        },
+        "C_control_kv_f16": {
+          "ok": true,
+          "by_depth": {
+            "0": {
+              "pp512_tok_s": 464.66,
+              "pp512_std": 0.62,
+              "tg128_tok_s": 57.83,
+              "tg128_std": 0.02
+            },
+            "2048": {
+              "pp512_tok_s": 435.98,
+              "pp512_std": 0.86,
+              "tg128_tok_s": 56.32,
+              "tg128_std": 0.25
+            }
+          },
+          "peak_rss_mib": 623.7,
+          "peak_vram_mib": 1250.0,
+          "delta_vram_mib": 1068.0
+        }
+      }
+    },
+    {
+      "key": "qwen3.5-2b-q4_k_m",
+      "label": "Qwen3.5-2B Q4_K_M",
+      "file_mib": 1211.9,
+      "calibration": {
+        "ok": true,
+        "rc": 0,
+        "bias_path": "qwen3.5-2b-q4_k_m-kv-bias.gguf",
+        "bias_bytes": 12672,
+        "summary_line": "0.36.930.610 I main: wrote K-cache mean-centering bias for 6 layer(s) to /work/b3_1_hadamard_bonsai/.build/logs/qwen3.5-2b-q4_k_m-kv-bias.gguf (measured with K rotation inactive)",
+        "error": null
+      },
+      "perplexity": {
+        "A_hadamard_kv_q4": {
+          "ppl": 14.002256,
+          "ppl_unc": 0.896599,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.047768,
+          "kld_median": 0.032286,
+          "kld_p99": 0.256077,
+          "same_top_pct": 88.48,
+          "ok": true,
+          "peak_rss_mib": 1303.9,
+          "peak_vram_mib": 1583.0,
+          "delta_vram_mib": 1400.0
+        },
+        "B_meancenter_kv_q4": {
+          "ppl": 14.029754,
+          "ppl_unc": 0.898239,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.049865,
+          "kld_median": 0.034174,
+          "kld_p99": 0.279175,
+          "same_top_pct": 87.99,
+          "ok": true,
+          "peak_rss_mib": 1307.9,
+          "peak_vram_mib": 1583.0,
+          "delta_vram_mib": 1400.0
+        },
+        "B0_norot_raw_q4": {
+          "ppl": 14.078983,
+          "ppl_unc": 0.903694,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.05012,
+          "kld_median": 0.034364,
+          "kld_p99": 0.254408,
+          "same_top_pct": 87.843,
+          "ok": true,
+          "peak_rss_mib": 1299.4,
+          "peak_vram_mib": 1583.0,
+          "delta_vram_mib": 1400.0
+        },
+        "C_control_kv_f16": {
+          "ppl": 13.972328,
+          "ppl_unc": 0.897062,
+          "ppl_base": 13.390906,
+          "kld_mean": 0.042144,
+          "kld_median": 0.027994,
+          "kld_p99": 0.215804,
+          "same_top_pct": 89.363,
+          "ok": true,
+          "peak_rss_mib": 1294.5,
+          "peak_vram_mib": 1587.0,
+          "delta_vram_mib": 1404.0
+        }
+      },
+      "bench": {
+        "A_hadamard_kv_q4": {
+          "ok": true,
+          "by_depth": {
+            "0": {
+              "pp512_tok_s": 720.7,
+              "pp512_std": 1.22,
+              "tg128_tok_s": 35.89,
+              "tg128_std": 0.03
+            },
+            "1024": {
+              "pp512_tok_s": 684.7,
+              "pp512_std": 0.39,
+              "tg128_tok_s": 34.67,
+              "tg128_std": 0.35
+            }
+          },
+          "peak_rss_mib": 872.2,
+          "peak_vram_mib": 1910.0,
+          "delta_vram_mib": 1727.0
+        },
+        "B_norot_kv_q4": {
+          "ok": true,
+          "by_depth": {
+            "0": {
+              "pp512_tok_s": 718.9,
+              "pp512_std": 0.61,
+              "tg128_tok_s": 35.93,
+              "tg128_std": 0.07
+            },
+            "1024": {
+              "pp512_tok_s": 684.46,
+              "pp512_std": 0.26,
+              "tg128_tok_s": 34.87,
+              "tg128_std": 0.11
+            }
+          },
+          "peak_rss_mib": 867.7,
+          "peak_vram_mib": 1871.0,
+          "delta_vram_mib": 1788.0
+        },
+        "C_control_kv_f16": {
+          "ok": true,
+          "by_depth": {
+            "0": {
+              "pp512_tok_s": 718.92,
+              "pp512_std": 0.15,
+              "tg128_tok_s": 36.21,
+              "tg128_std": 0.11
+            },
+            "1024": {
+              "pp512_tok_s": 664.23,
+              "pp512_std": 7.75,
+              "tg128_tok_s": 35.52,
+              "tg128_std": 0.18
+            }
+          },
+          "peak_rss_mib": 865.7,
+          "peak_vram_mib": 1883.0,
+          "delta_vram_mib": 1800.0
+        }
+      }
+    }
+  ]
+}
