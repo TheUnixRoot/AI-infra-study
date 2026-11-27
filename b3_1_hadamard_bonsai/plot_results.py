@@ -282,24 +282,24 @@ def main() -> int:
         lvl_map = {r["level"]: r for r in ladder["levels"]}
 
         bars_spec = [
-            ("N0\nF16 Base", n0_f16["ppl"], 0.0, 100.0, "#334155"),
-            ("Id N2\nF16+FWHT", id_n2.get("ppl", n0_f16["ppl"]), abs(id_n2.get("kld_mean") or 0.0), id_n2.get("same_top_pct", 99.95), "#0284c7"),
-            ("N1a\namax Raw", lvl_map["N1_amax"]["ppl"], lvl_map["N1_amax"]["kld_mean"], lvl_map["N1_amax"]["same_top_pct"], "#dc2626"),
-            ("N2a\nFWHT+amax", lvl_map["N2_amax"]["ppl"], lvl_map["N2_amax"]["kld_mean"], lvl_map["N2_amax"]["same_top_pct"], "#ea580c"),
-            ("N1b\nTWN Raw", lvl_map["N1_twn"]["ppl"], lvl_map["N1_twn"]["kld_mean"], lvl_map["N1_twn"]["same_top_pct"], "#d97706"),
-            ("N2b\nFWHT+TWN", lvl_map["N2_twn"]["ppl"], lvl_map["N2_twn"]["kld_mean"], lvl_map["N2_twn"]["same_top_pct"], "#0d9488"),
+            ("N0\nF16", n0_f16["ppl"], 0.0, 100.0, "#334155"),
+            ("Id N2\nFWHT", id_n2.get("ppl", n0_f16["ppl"]), abs(id_n2.get("kld_mean") or 0.0), id_n2.get("same_top_pct", 99.95), "#0284c7"),
+            ("N1a\namax", lvl_map["N1_amax"]["ppl"], lvl_map["N1_amax"]["kld_mean"], lvl_map["N1_amax"]["same_top_pct"], "#dc2626"),
+            ("N2a\nH+amax", lvl_map["N2_amax"]["ppl"], lvl_map["N2_amax"]["kld_mean"], lvl_map["N2_amax"]["same_top_pct"], "#ea580c"),
+            ("N1b\nTWN", lvl_map["N1_twn"]["ppl"], lvl_map["N1_twn"]["kld_mean"], lvl_map["N1_twn"]["same_top_pct"], "#d97706"),
+            ("N2b\nH+TWN", lvl_map["N2_twn"]["ppl"], lvl_map["N2_twn"]["kld_mean"], lvl_map["N2_twn"]["same_top_pct"], "#0d9488"),
         ]
         if "N3_f16" in lvl_map:
-            bars_spec.append(("N3 F16\nGPTQ-Unp", lvl_map["N3_f16"]["ppl"], lvl_map["N3_f16"]["kld_mean"], lvl_map["N3_f16"]["same_top_pct"], "#8b5cf6"))
+            bars_spec.append(("N3 F16\nUnp.", lvl_map["N3_f16"]["ppl"], lvl_map["N3_f16"]["kld_mean"], lvl_map["N3_f16"]["same_top_pct"], "#8b5cf6"))
         if "N3_gptq" in lvl_map:
-            bars_spec.append(("N3\nFWHT+GPTQ", lvl_map["N3_gptq"]["ppl"], lvl_map["N3_gptq"]["kld_mean"], lvl_map["N3_gptq"]["same_top_pct"], "#4f46e5"))
+            bars_spec.append(("N3\nGPTQ", lvl_map["N3_gptq"]["ppl"], lvl_map["N3_gptq"]["kld_mean"], lvl_map["N3_gptq"]["same_top_pct"], "#4f46e5"))
         if "N3A1_gptq" in lvl_map:
-            bars_spec.append(("N3A-1\nAsym+Calib", lvl_map["N3A1_gptq"]["ppl"], lvl_map["N3A1_gptq"]["kld_mean"], lvl_map["N3A1_gptq"]["same_top_pct"], "#2563eb"))
+            bars_spec.append(("N3A-1\nAsym", lvl_map["N3A1_gptq"]["ppl"], lvl_map["N3A1_gptq"]["kld_mean"], lvl_map["N3A1_gptq"]["same_top_pct"], "#2563eb"))
         if "N3A2_gptq" in lvl_map:
-            bars_spec.append(("N3A-2\nFull PTQ", lvl_map["N3A2_gptq"]["ppl"], lvl_map["N3A2_gptq"]["kld_mean"], lvl_map["N3A2_gptq"]["same_top_pct"], "#0891b2"))
+            bars_spec.append(("N3A-2\nFull", lvl_map["N3A2_gptq"]["ppl"], lvl_map["N3A2_gptq"]["kld_mean"], lvl_map["N3A2_gptq"]["same_top_pct"], "#0891b2"))
         bars_spec.append(("N4\nBonsai2", n4_pq2["ppl"], n4_pq2["kld_mean"], n4_pq2["same_top_pct"], "#059669"))
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15.8, 5.6))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(17.2, 5.6))
         x = np.arange(len(bars_spec))
         lbls = [b[0] for b in bars_spec]
         ppls = [b[1] for b in bars_spec]
@@ -307,11 +307,11 @@ def main() -> int:
         tops = [b[3] for b in bars_spec]
         cols = [b[4] for b in bars_spec]
 
-        b_ppl = ax1.bar(x, ppls, color=cols, width=0.60)
+        b_ppl = ax1.bar(x, ppls, color=cols, width=0.58)
         ax1.set_yscale("log")
         ax1.set_ylim(5, 2.5e7)
         ax1.set_xticks(x)
-        ax1.set_xticklabels(lbls, fontsize=7.6)
+        ax1.set_xticklabels(lbls, fontsize=7.3)
         ax1.set_ylabel("Perplejidad wikitext-2 (escala log, menor es mejor)")
         ax1.set_title("Escalera de Perplejidad (F16 vs PQ2_0 493,3 MiB, 151 tensores)")
         for bar, val in zip(b_ppl, ppls):
@@ -322,7 +322,7 @@ def main() -> int:
             else:
                 txt = f"{val:.2f}"
             ax1.annotate(txt, (bar.get_x() + bar.get_width() / 2, val),
-                         ha="center", va="bottom", fontsize=7.2, xytext=(0, 3), textcoords="offset points")
+                         ha="center", va="bottom", fontsize=7.0, xytext=(0, 3), textcoords="offset points")
 
         w = 0.38
         ax2_r = ax2.twinx()
@@ -330,7 +330,7 @@ def main() -> int:
         b_kld = ax2.bar(x - w / 2, klds, width=w, color="#e11d48", alpha=0.88, label="Mean KLD vs F16 (izq, ↓)")
         b_top = ax2_r.bar(x + w / 2, tops, width=w, color="#0ea5e9", alpha=0.85, label="SameTop % (der, ↑)")
         ax2.set_xticks(x)
-        ax2.set_xticklabels(lbls, fontsize=7.6)
+        ax2.set_xticklabels(lbls, fontsize=7.3)
         ax2.set_ylim(0, 14.8)
         ax2_r.set_ylim(0, 114)
         ax2.set_ylabel("Mean KLD vs F16 (nats)", color="#be123c")
@@ -338,16 +338,16 @@ def main() -> int:
         ax2.set_title("Divergencia KL y coincidencia Top-1 frente a Qwen3.5-2B F16")
         for bar, val in zip(b_kld, klds):
             ax2.annotate(f"{val:.2f}", (bar.get_x() + bar.get_width() / 2, val),
-                         ha="center", va="bottom", fontsize=6.6, color="#9f1239", xytext=(0, 2), textcoords="offset points")
+                         ha="center", va="bottom", fontsize=6.4, color="#9f1239", xytext=(0, 2), textcoords="offset points")
         for bar, val in zip(b_top, tops):
             if val > 0:
                 ax2_r.annotate(f"{val:.1f}%", (bar.get_x() + bar.get_width() / 2, val),
-                               ha="center", va="bottom", fontsize=6.6, color="#0369a1", xytext=(0, 2), textcoords="offset points")
+                               ha="center", va="bottom", fontsize=6.4, color="#0369a1", xytext=(0, 2), textcoords="offset points")
         h1, l1 = ax2.get_legend_handles_labels()
         h2, l2 = ax2_r.get_legend_handles_labels()
         ax2.legend(h1 + h2, l1 + l2, loc="upper center", fontsize=7.8, ncol=2)
 
-        fig.suptitle("B3.1 Escalera de Ablación: Hadamard vs RTN vs GPTQ (F16 / PQ2_0) vs Bonsai 2", fontsize=11, fontweight="bold")
+        fig.suptitle("B3.1 Escalera de Ablación: Hadamard vs RTN vs GPTQ / N3A vs Bonsai 2", fontsize=11, fontweight="bold")
         fig.tight_layout()
         fig.savefig(args.out_dir / "b3_1_ablation_ladder.png", bbox_inches="tight")
         plt.close(fig)
