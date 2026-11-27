@@ -243,20 +243,20 @@ def parse_ppl_output(text: str) -> dict[str, float | None]:
         val = float(m.group(1))
         return round(val, 6)
 
-    ppl = find_float(r"Mean PPL\(Q\)\s*:\s*([0-9]+(?:\.[0-9]+)?)")
+    ppl = find_float(r"Mean PPL\(Q\)\s*:\s*([-+]?[0-9]+(?:\.[0-9]+)?)")
     if ppl is None:
-        ppl = find_float(r"Final estimate:\s*PPL\s*=\s*([0-9]+(?:\.[0-9]+)?)")
-    ppl_std = find_float(r"Mean PPL\(Q\)\s*:\s*[0-9.]+\s*\+/-\s*([0-9]+(?:\.[0-9]+)?)")
+        ppl = find_float(r"Final estimate:\s*PPL\s*=\s*([-+]?[0-9]+(?:\.[0-9]+)?)")
+    ppl_std = find_float(r"Mean PPL\(Q\)\s*:\s*[-+]?[0-9.]+\s*\+/-\s*([0-9]+(?:\.[0-9]+)?)")
     if ppl_std is None:
-        ppl_std = find_float(r"Mean PPL\(Q\)\s*:\s*[0-9.]+\s*±\s*([0-9]+(?:\.[0-9]+)?)")
+        ppl_std = find_float(r"Mean PPL\(Q\)\s*:\s*[-+]?[0-9.]+\s*±\s*([0-9]+(?:\.[0-9]+)?)")
     if ppl_std is None:
-        ppl_std = find_float(r"Final estimate:\s*PPL\s*=\s*[0-9.]+\s*\+/-\s*([0-9]+(?:\.[0-9]+)?)")
+        ppl_std = find_float(r"Final estimate:\s*PPL\s*=\s*[-+]?[0-9.]+\s*\+/-\s*([0-9]+(?:\.[0-9]+)?)")
 
-    ppl_base = find_float(r"Mean PPL\(base\)\s*:\s*([0-9]+(?:\.[0-9]+)?)")
-    kld_mean = find_float(r"Mean\s+KLD:\s*([0-9]+(?:\.[0-9]+)?)")
-    kld_median = find_float(r"Median\s+KLD:\s*([0-9]+(?:\.[0-9]+)?)")
-    kld_p99 = find_float(r"99\.0%\s+KLD:\s*([0-9]+(?:\.[0-9]+)?)")
-    same_top_pct = find_float(r"Same top p\s*:\s*([0-9]+(?:\.[0-9]+)?)")
+    ppl_base = find_float(r"Mean PPL\(base\)\s*:\s*([-+]?[0-9]+(?:\.[0-9]+)?)")
+    kld_mean = find_float(r"Mean\s+KLD:\s*([-+]?[0-9]+(?:\.[0-9]+)?)")
+    kld_median = find_float(r"Median\s+KLD:\s*([-+]?[0-9]+(?:\.[0-9]+)?)")
+    kld_p99 = find_float(r"99\.0%\s+KLD:\s*([-+]?[0-9]+(?:\.[0-9]+)?)")
+    same_top_pct = find_float(r"Same top p\s*:\s*([-+]?[0-9]+(?:\.[0-9]+)?)")
     return {
         "ppl": ppl,
         "ppl_unc": ppl_std,
