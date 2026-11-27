@@ -1,107 +1,108 @@
 #import "../theme.typ": *
 
-= Tronco Común y Arquitectura de los Dos Itinerarios
+= Tronco Común: Lo Común, Lo Específico y Tres Itinerarios
 
-Partiendo de un perfil *Senior DevOps / SRE* (Kubernetes, CI/CD, IaC en AWS/Azure, gestión de secretos/identidades, SLOs, respuesta a incidentes y Prometheus/Grafana), ambos itinerarios evitan repetir fundamentos básicos de infraestructura generalista y concentran el estudio en cerrar brechas específicas de *sistemas de IA en producción*.
-
-Al contrastar el currículo de *AI Infrastructure & GPU Systems* (Curso 1) con el de *Enterprise MLOps & Agentic Platform Engineering* (Curso 2), emerge un *tronco común técnico de 6 pilares* que representa aproximadamente el 40 % de las competencias transversales y evita duplicar esfuerzo entre ambos perfiles.
+Partiendo de un perfil *Senior DevOps / SRE* (Kubernetes, CI/CD, IaC en AWS/Azure, gestión de secretos/identidades, SLOs y Prometheus/Grafana) junto con base en sistemas C++/CUDA (`LogFit` y bloque local `B1.1`–`B2.1`), los tres itinerarios evitan duplicar fundamentos y concentran el esfuerzo en cerrar brechas específicas de *inferencia y plataformas de IA* sobre un *Tronco Común de 6 pilares* (~35–40 % transversal).
 
 #infografia(
-  "Mapa Unificado: Baseline DevOps/SRE -> Tronco Común -> Dos Itinerarios",
-  "Arquitectura curricular conjunta: los 6 pilares comunes alimentan tanto la especialización de bajo nivel GPU/Inferencia (Curso 1) como la plataforma agéntica empresarial (Curso 2).",
-  height: 225pt,
+  "Mapa Unificado: Baseline Técnico -> Tronco Común (6 Pilares) -> Tres Itinerarios",
+  "Lo común (6 pilares transversales en el centro) alimenta las tres especializaciones: Datacenter GPU (Curso 1), Plataforma Agéntica (Curso 2) y Edge-AI Sub-2-Bit & Kernels Portables (Curso 3).",
+  height: 245pt,
 )[
   // Baseline superior
-  #diag-node(140pt, 6pt, 190pt, 30pt, "BASELINE: Senior DevOps / SRE", sub: "K8s · CI/CD · IaC (AWS/Azure) · Prometheus · SLOs", fill: bg-light, col: slate)
-  #arrow-d(235pt, 36pt, 54pt, col: slate)
+  #diag-node(120pt, 6pt, 230pt, 28pt, "BASELINE: Senior DevOps/SRE + C++/CUDA", sub: "K8s · CI/CD · Prometheus · CUDA sm_61 (B1.1–B2.1) · LogFit", fill: bg-light, col: slate)
+  #arrow-d(235pt, 34pt, 50pt, col: slate)
 
   // Tronco común central
-  #place(dx: 12pt, dy: 54pt, rect(width: 446pt, height: 68pt, fill: rgb("#F8FAFC"), stroke: 0.9pt + teal, radius: 5pt))
-  #place(dx: 20pt, dy: 58pt, text(fill: teal, weight: "bold", size: 8pt)[TRONCO COMÚN (6 PILARES TRANSVERSALES)])
-  #diag-node(20pt, 73pt, 138pt, 20pt, "1. Economía Prefill/Decode & KV", fill: bg-teal, col: teal)
-  #diag-node(166pt, 73pt, 138pt, 20pt, "2. Cargas Agénticas & RAG", fill: bg-teal, col: teal)
-  #diag-node(312pt, 73pt, 138pt, 20pt, "3. Eval Científica & CI Gates", fill: bg-teal, col: teal)
-  #diag-node(20pt, 97pt, 138pt, 20pt, "4. Trazabilidad & FinOps $/1M", fill: bg-teal, col: teal)
-  #diag-node(166pt, 97pt, 138pt, 20pt, "5. K8s Serving, SLOs & Cold Start", fill: bg-teal, col: teal)
-  #diag-node(312pt, 97pt, 138pt, 20pt, "6. Sistema 20m Micro-Sprints", fill: bg-teal, col: teal)
+  #place(dx: 10pt, dy: 50pt, rect(width: 450pt, height: 68pt, fill: rgb("#F8FAFC"), stroke: 0.9pt + teal, radius: 5pt))
+  #place(dx: 18pt, dy: 54pt, text(fill: teal, weight: "bold", size: 7.8pt)[TRONCO COMÚN · LO COMÚN (6 PILARES TRANSVERSALES)])
+  #diag-node(18pt, 68pt, 140pt, 20pt, "1. Prefill/Decode & KV-Cache", fill: bg-teal, col: teal)
+  #diag-node(165pt, 68pt, 140pt, 20pt, "2. Agentes, Tools & JSON", fill: bg-teal, col: teal)
+  #diag-node(312pt, 68pt, 140pt, 20pt, "3. Rigor Científico & Pareto", fill: bg-teal, col: teal)
+  #diag-node(18pt, 92pt, 140pt, 20pt, "4. Trazabilidad & FinOps/mWh", fill: bg-teal, col: teal)
+  #diag-node(165pt, 92pt, 140pt, 20pt, "5. Serving & Portabilidad", fill: bg-teal, col: teal)
+  #diag-node(312pt, 92pt, 140pt, 20pt, "6. Micro-Sprints 20m + Handover", fill: bg-teal, col: teal)
 
-  // Bifurcación hacia Curso 1 y Curso 2
-  #arrow-d(120pt, 122pt, 146pt, col: navy)
-  #arrow-d(350pt, 122pt, 146pt, col: purple)
+  // Trifurcación hacia Cursos 1, 2 y 3
+  #arrow-d(84pt, 118pt, 140pt, col: navy)
+  #arrow-d(235pt, 118pt, 140pt, col: purple)
+  #arrow-d(386pt, 118pt, 140pt, col: amber)
 
   // Curso 1
-  #diag-node(12pt, 146pt, 216pt, 72pt,
-    "CURSO 1: AI Infra & GPU Systems",
-    sub: "B1 GPU/CUDA/nsys -> B2 KV/vLLM/SGLang -> B3 FP8/SpecDecode -> B4 MoE/WideEP/PDD/NCCL -> B5 DCGM/MFU/K8s\nProyectos: agentic-inference-opt-lab + gpu-cluster-acceptance",
+  #diag-node(10pt, 140pt, 146pt, 96pt,
+    "CURSO 1: AI Infra GPU",
+    sub: "B1 CUDA/nsys -> B2 vLLM/SGLang\nB3 FP8/AWQ/SpecDecode\nB4 MoE/WideEP/PDD/NCCL\nB5 DCGM/MFU/K8s MIG\nProj A + B (Cloud H100/L40S)",
     fill: bg-navy, col: navy)
 
   // Curso 2
-  #diag-node(242pt, 146pt, 216pt, 72pt,
-    "CURSO 2: Agentic Platform MLOps",
-    sub: "B1 Databricks/MLflow/Unity Catalog -> B2 Agent Evals/RAG/OTel -> B3 Seldon/Knative/Istio/Argo/Crossplane -> B4 SRE/Multi-Region\nProyecto: agentic-platform-golden-path",
+  #diag-node(162pt, 140pt, 146pt, 96pt,
+    "CURSO 2: Agentic MLOps",
+    sub: "B1 Databricks/MLflow/UC\nB2 Evals/RAG/OTel/FinOps\nB3 Seldon/Istio/Argo/Crossplane\nB4 SRE SLOs/Multi-Región UE\nProj: agentic-golden-path",
     fill: bg-purple, col: purple)
+
+  // Curso 3
+  #diag-node(314pt, 140pt, 146pt, 96pt,
+    "CURSO 3: Edge-AI (0 EUR)",
+    sub: "E0-E1 mWh/tok + Bonsai 2\nE2 Hadamard + GPTQ CPU\nE3 Gemma 4 E2B (<1 GB)\nE4 CUDA dp4a + Vulkan GLSL\nE5 <8W + LogFit-Edge + UMA",
+    fill: bg-amber, col: amber)
 ]
 
-== Matriz Comparativa de Ambos Puestos
+== Matriz Comparativa de los Tres Itinerarios
 
 #styled-table(
-  columns: (1.1fr, 1.5fr, 1.5fr),
-  headers: ("Eje de Comparación", "Itinerario 1: AI Infra & GPU Systems", "Itinerario 2: Agentic Platform MLOps"),
+  columns: (0.85fr, 1.35fr, 1.35fr, 1.35fr),
+  headers: ("Eje", "Curso 1: AI Infra & GPU", "Curso 2: Agentic MLOps", "Curso 3: Edge-AI Sub-2-Bit"),
   rows: (
-    ([*Roles Objetivo*], [GPU Platform Benchmarking · Senior MLE Inference (Token Factory)], [MLOps Engineer (Agentic Platform) · AI Platform Engineer]),
-    ([*Capa Principal*], [Hardware GPU, CUDA/Triton, motores vLLM/SGLang/TRT-LLM, NCCL, clúster], [Plataforma Databricks/MLflow, gobernanza Unity Catalog, evals, K8s serving, SRE]),
-    ([*Hardware / Entorno*], [GTX 1050 `sm_61` + Ráfagas Cloud (`L4`, `L40S`, `2x–8x H100`)], [CPU local (Docker, Kind, MLflow, OpenSearch) + Databricks Free/Trial]),
-    ([*Métrica Reina*], [TTFT, TPOT, tok/s/GPU, `busbw`, MFU, frontera de Pareto `$/1M`], [Task Success, Tool Reliability, Recall\@K, Availability SLO, Audit Readiness]),
-    ([*Entregables*], [`agentic-inference-opt-lab` + `gpu-cluster-acceptance-profiler`], [`agentic-platform-golden-path` (ADRs + MLflow + UC + Seldon/Istio/Crossplane)]),
+    ([*Roles Objetivo*], [GPU Platform Benchmarking · Senior MLE Inference], [Staff/Senior MLOps · Agentic Platform Engineer], [Senior Edge Inference MLE · Portable Kernel Engineer (HPAC/UMA)]),
+    ([*Hardware / Entorno*], [GTX 1050 `sm_61` (`B1`–`B2.1`) + Cloud (`L4`/`L40S`/`H100`)], [CPU local (Docker, Kind, MLflow) + Databricks Trial], [*0 EUR:* GTX 1050 `sm_61` + CPU 16GB+ + Android Termux (`ARM64` + Vulkan)]),
+    ([*Métrica Reina*], [TTFT, TPOT, tok/s/GPU, `busbw`, MFU, Pareto `\$/1M`], [Task Success, Tool Reliability, `Recall@K`, SLOs, Audit], [`mWh/token` (W netos), `% BW pico`, `PPL`, `KLD`, `GSM8K`/`IFEval`, `€/año`]),
+    ([*Entregables*], [`agentic-inference-opt-lab` + `gpu-cluster-acceptance`], [`agentic-platform-golden-path` (Audit-Ready + GitOps)], [`edge-ternary-lab` + `Logfit` README + Dossier UMA 1 pág.]),
   ),
 )
 
-== Los 6 Pilares del Tronco Común
+== Los 6 Pilares del Tronco Común (Lo Común)
 
 #styled-table(
-  columns: (0.9fr, 1.5fr, 1.5fr),
-  headers: ("Pilar Común", "Materialización en Curso 1 (GPU/Inferencia)", "Materialización en Curso 2 (Agentic MLOps)"),
+  columns: (0.8fr, 1.25fr, 1.25fr, 1.25fr),
+  headers: ("Pilar", "Curso 1 (Datacenter GPU)", "Curso 2 (Enterprise MLOps)", "Curso 3 (Edge-AI Sub-2-Bit)"),
   rows: (
-    ([*1. Física Prefill vs Decode & KV-Cache*],
-     [Roofline $I = "FLOPs"/"Bytes"$, fórmula $2 dot L dot n_"kv" dot d_"head" dot S dot B dot b$, cuantización FP8 del KV y MLA.],
-     [Capacity planning (TPM/RPM), dimensionamiento de endpoints serverless vs K8s, presupuesto de contexto largo y latencia cross-region.]),
-    ([*2. Cargas Agénticas y RAG*],
-     [Prefix Caching (vLLM APC / SGLang RadixAttention) sobre prompts de herramientas repetidos y overhead CPU de XGrammar/FSM.],
-     [Evaluación de trayectorias agénticas (*tool selection*, JSON válido, no bucles) y salud de índices vectoriales (`Recall@K`, *index lag*).]),
-    ([*3. Metodología Científica y Gates*],
-     [Warmup obligatorio, percentiles p50/p95/p99 sin *coordinated omission*, `lm-eval` / EvalPlus y detección de regresiones en CI.],
-     [`mlflow.genai.evaluate()` como *Evaluation Gate* bloqueante en CI/CD (`Tool >= 95%`, `Task >= 90%`) y Argo Rollouts Canary auto-rollback.]),
-    ([*4. Trazabilidad y FinOps*],
-     [Profiling GPU/CPU con `nsys` (NVTX, `cuda_gpu_kern_sum`), `ncu`, Linux `perf` y coste `$/1M tokens`.],
-     [MLflow Tracing + OpenTelemetry (*spans* `user->RAG->LLM->tool`), OpenSearch + Grafana, cuotas por sesión y *circuit breakers* FinOps.]),
-    ([*5. K8s Serving y Operación SRE*],
-     [NVIDIA GPU Operator, MIG vs Time-Slicing, LeaderWorkerSet, DCGM Exporter y aceleración de *cold starts* (`safetensors` + NVMe).],
-     [Seldon Core v2 (`Model`/`Pipeline`), Knative (*scale-to-zero*), Istio (mTLS, *mirroring*), Crossplane XRDs y *Post-Mortems blameless*.]),
-    ([*6. Sistema Operativo 20m*],
-     [Chats 1-a-1 `CHAT-B1..B5`, sprints `[MOB]/[LOC]/[PREP]/[CLD]`, *Handover* YAML y `sudo shutdown -h +90` en VMs GPU.],
-     [Chats 1-a-1 `CHAT-B1..B4`, sprints `[MOB]/[LOC]/[PREP]/[LAB]`, *Handover* YAML y `verify.sh < 60s` por cada entregable.]),
+    ([*1. Prefill/Decode & KV*],
+     [Roofline $I="FLOPs"/"Bytes"$, KV FP8, MLA (`DeepSeek`) y `PagedAttention`.],
+     [Capacity planning (`TPM`/`RPM` vs VRAM) y latencia cross-region.],
+     [Techo $"BW"/"Bytes"$ en `112 GB/s` y móvil; `1.73 bpp` + KV `q4_0` (`< 1 GB`).]),
+    ([*2. Agentes, Tools & JSON*],
+     [*Prefix Caching* (`APC`/`Radix`) y `XGrammar` FSM en concurrencia alta.],
+     [Trayectorias agénticas, `mlflow.evaluate()` y salud RAG (`index_lag`).],
+     [Calidad real (`GSM8K`, `IFEval`, JSON, `<|think|>`) y fallos `lm_head`/`PLE`.]),
+    ([*3. Rigor y Pareto*],
+     [Warmup, carga abierta (sin *coordinated omission*) y Pareto `\$/1M`.],
+     [Gates bloqueantes CI (`Tool >= 95%`) y Canary auto-rollback en Argo.],
+     [Muestreo `sysfs`/`NVML` con base *idle* (var. `< 5%`) y Pareto `mWh/tok` vs `KLD`.]),
+    ([*4. Trazas y Economía*],
+     [`nsys` + NVTX, `ncu` roofline, `perf` y métrica `USD / 1M tokens`.],
+     [OTel GenAI spans, MLflow Tracing, OpenSearch y *circuit breakers* FinOps.],
+     [`nsys` sobre `GEMV` `sm_61` (`> 65–75%` pico), potencia neta (W) y `€/año`.]),
+    ([*5. Serving & Portabilidad*],
+     [K8s GPU Operator, `MIG`, `LeaderWorkerSet`, `PDD`/`NIXL` y *cold starts*.],
+     [Seldon v2, Knative KPA, Istio shadow/canary, Crossplane XRDs y SRE UE.],
+     [CUDA `sm_61` $arrow.r$ Vulkan GLSL (*zero-copy* móvil), *LogFit-Edge* y API `< 8 W`.]),
+    ([*6. Sistema 20m*],
+     [`CHAT-B1..B5`, `[PREP]`$arrow.r$`[CLD]`, `run.sh --smoke-test`, `shutdown +90`.],
+     [`CHAT-B1..B4`, `[MOB]/[LOC]/[LAB]`, `verify.sh < 60s` y `audit-evidence`.],
+     [`[MOB]/[LOC-PC]/[LOC-AND]/[AGENT]`, Pre-Flight con tests y 1 commit/sprint.]),
   ),
 )
 
-== Sistema Operativo de Estudio (Higiene, Handover y Fork)
+== Lo Específico y Enganche Temporal (`Curso 1` $arrow.r$ `Curso 3`)
 
-Para evitar que sesiones largas degraden el contexto técnico o mezclen objetivos de distintos bloques, ambos cursos comparten el mismo protocolo operativo en micro-sprints de 20 minutos:
+#concepto-clave(title: "Frontera entre lo Específico de Datacenter (C1), Plataforma (C2) y Edge (C3)")[
+  - *Exclusivo Curso 1:* `OpenAI Triton`, `ncu` (`sm_70+`), `vLLM`/`SGLang`/`TensorRT-LLM`, `FP8` en Tensor Cores, `Speculative Decoding` (`EAGLE-3`/`MTP`), paralelismo multi-GPU (`TP`/`PP`/`EP`, `NCCL`, `PDD`) y aceptación `dcgmi`/`Xid`/`Megatron MFU`.
+  - *Exclusivo Curso 2:* `Databricks Mosaic AI`, `MLflow 3` (`LoggedModel` + aliases), `Unity Catalog` (`lineage`, `RBAC`/`ABAC`), `Seldon`/`Knative`/`Istio`/`Argo`/`Crossplane` y *failover* soberano RGPD en la UE.
+  - *Exclusivo Curso 3 (`B3-Edge`):* empaquetado base-3 `TQ1_0` sin divisiones (`(xi * 3) >> 8`), rotación ortogonal *Fast Hadamard Transform* (`FHT`), `GPTQ` con Cholesky del Hessiano en CPU (`< 10 GB` RAM), anatomía `Gemma 4 E2B` (`PLE`, `vision_tower`, `audio_tower`, `lm_head`), kernels desde cero con *`__dp4a`* (`sm_61`) y *Vulkan Compute GLSL* (*subgroups* + memoria unificada *zero-copy*), despliegue doméstico `< 8 W` y puente académico con `TheUnixRoot/Logfit` (dossier HPAC/UMA).
+]
 
-1. *Regla 1-a-1:* un único chat activo por bloque (`CHAT-Bx`). Al alargarse un hilo, se cierra con un bloque *Handover* y se reinicia mediante *Fork*.
-2. *Separación Tutor vs Agente:* el cuaderno LLM actúa como tutor socrático, revisor de trazas/ADRs y diseñador de rúbricas; el agente de código construye los scripts reproducibles (`run.sh` / `verify.sh`), Dockerfiles y manifests.
-3. *Regla Pre-Flight `[PREP]`:* prohibido alquilar GPU cloud (`[CLD]`) o consumir cuota de laboratorio sin haber validado antes el script en seco (`--smoke-test` / `--dry-run`) en entorno local.
-4. *Auto-Kill obligatorio en Cloud:* toda VM GPU alquilada en Nebius o Scaleway ejecuta `sudo shutdown -h +90` como primer comando.
-
-#practica-box(title: "Plantillas Estándar de Control (Handover y Delegación)")[
-```yaml
-HANDOVER:
-  itinerario: "Curso 1 (AI Infra) | Curso 2 (Agentic MLOps)"
-  unidad_actual: "Bx.y"
-  estado: "en_progreso" # pendiente | en_progreso | done
-  aprendido_o_verificado:
-    - "Invariante o métrica verificada con evidencia real"
-  artefacto_generado: "ruta/al/script_o_adr"
-  bloqueos_o_dudas: "Detalle concreto pendiente"
-  siguiente_micro_sprint_20m: "Bx.y [MODO] - Siguiente paso exacto"
-```
+#practica-box(title: "Checklist de Enganche sin Quemarte (Curso 1 ↔ Curso 3)")[
+  1. *Mientras cierras Bloque 2 de Curso 1 (`B2.1`–`B2.4`):* ejecuta solo `E0` y `E1` en ratos sueltos (compilar `llama.cpp`/PrismML + calibrar `mWh/token`).
+  2. *Al arrancar Bloque 3 (`B3.1` Cuantización) de Curso 1:* ejecuta `E2` y `E3` en CPU local (`0 EUR`) antes de alquilar `Cloud-3` (`H100`).
+  3. *Tras cerrar Bloque 3 de Curso 1:* ejecuta `E4` (kernels CUDA `sm_61` + Vulkan GLSL) y `E5` (servidor `< 8 W` + *LogFit-Edge* + dossier para Rafael Asenjo).
 ]

@@ -5,9 +5,9 @@ Guía para agentes de código (Claude Code, Gemini CLI, Codex, Copilot…) y par
 
 ## 1. Qué es este repositorio
 
-Learning path con **dos itinerarios** sobre un tronco común: **Curso 1 · AI Infrastructure** (GPU, inferencia y benchmarking de clústeres) y **Curso 2 · Enterprise Agentic MLOps** (Databricks, MLflow, Unity Catalog, evals, Kubernetes/GitOps y SRE), con prácticas reproducibles.
-El temario del Curso 1 está en [`docs/temario/00-master-playbook.md`](docs/temario/00-master-playbook.md), el del Curso 2 en [`docs/temario/01-agentic-mlops-playbook.md`](docs/temario/01-agentic-mlops-playbook.md) y el [`README.md`](README.md) es su índice,
-con enlaces a cada práctica. Los resultados medidos están en [`INFORME_RESULTADOS.md`](INFORME_RESULTADOS.md).
+Learning path con **tres itinerarios** sobre un tronco común: **Curso 1 · AI Infrastructure** (GPU, inferencia y benchmarking de clústeres), **Curso 2 · Enterprise Agentic MLOps** (Databricks, MLflow, Unity Catalog, evals, Kubernetes/GitOps y SRE) y **Curso 3 · Edge-AI Sub-2-Bit & Kernels Portables** (extensión `B3-Edge`, cuyo repo compañero es `edge-ternary-lab`), con prácticas reproducibles.
+Los temarios están en [`docs/temario/00-master-playbook.md`](docs/temario/00-master-playbook.md) (Curso 1), [`docs/temario/01-agentic-mlops-playbook.md`](docs/temario/01-agentic-mlops-playbook.md) (Curso 2), [`docs/temario/02-tronco-comun-y-itinerarios.md`](docs/temario/02-tronco-comun-y-itinerarios.md) (Tronco Común) y [`docs/temario/03-edge-ai-ternary-playbook.md`](docs/temario/03-edge-ai-ternary-playbook.md) (Curso 3). El [`README.md`](README.md) es su índice,
+con enlaces a cada práctica y manual PDF. Los resultados medidos están en [`INFORME_RESULTADOS.md`](INFORME_RESULTADOS.md).
 Se publica como sitio de GitHub Pages con **MkDocs Material** (ver `mkdocs.yml` y la sección 7).
 
 ## 2. Hardware: local frente a cloud
@@ -90,11 +90,11 @@ docker run --rm --gpus all -v "$PWD":/work ai-infra-study:cuda12.6 bash -c "cd b
 docker build -t ai-infra-study:cloud --build-arg CUDA_ARCH=sm_90 .      # sm_89 para L4/L40S
 ```
 
-### 3.5 Entorno sin GPU (Termux / móvil / CI solo CPU)
+### 3.5 Entorno sin GPU NVIDIA (Termux / móvil / CI solo CPU)
 
-Si trabajas desde un entorno sin GPU NVIDIA (p. ej. Termux en Android para revisar temario o preparar `[PREP]`):
+Si trabajas desde Termux/Android para revisar temario, compilar manuales Typst o validar `AI-infra-study` (las prácticas CUDA/GPU de Curso 1 pertenecen a PC/Cloud; para el repo compañero **`edge-ternary-lab` del Curso 3**, las corridas `[LOC-AND]` de `llama.cpp` ARM64 NEON/Vulkan y telemetría `sysfs` sí se ejecutan en Termux en ese repositorio separado):
 
-- **Prohibido ejecutar código GPU/CUDA aquí** (`nvcc`, `nsys`, `perf` o benchmarks PyTorch CUDA). No sobrescribas los artefactos reales de `artifacts/` medidos en la GTX 1050.
+- **Prohibido ejecutar código GPU/CUDA de `AI-infra-study` aquí** (`nvcc`, `nsys`, `perf` o benchmarks PyTorch CUDA). No sobrescribas los artefactos reales de `artifacts/` medidos en la GTX 1050.
 - Solo se ejecutan validaciones offline en CPU/Python puro y comprobaciones de sintaxis:
   ```bash
   python3 -m unittest discover -s tests -v
@@ -131,7 +131,7 @@ Si trabajas desde un entorno sin GPU NVIDIA (p. ej. Termux en Android para revis
    dejes contenedores corriendo. No ejecutes `docker system prune` ni borres imágenes que no sean tuyas.
 6. **Una venv por entorno en la raíz** (`.venv`, `.venv-linux`), fuera del control de versiones.
 7. **Commits:** mensajes convencionales (`fix(b1.3): …`, `docs: …`), un commit por tema. No hagas push sin que se pida.
-8. **Fuentes y veracidad del temario (ambos cursos):** toda afirmación técnica con cifras, nombres de API/atributos, privilegios o licencias debe poder rastrearse a documentación oficial enlazada o a una medición en `artifacts/`. Los datos hipotéticos de ejercicios se marcan como *ilustrativos*. Antes de fijar un nombre de API, atributo o versión (MLflow, OpenTelemetry GenAI, Crossplane, Seldon…) comprueba la versión vigente: cambian rápido. Un contenido generado por IA no cuenta como fuente.
+8. **Fuentes y veracidad del temario (todos los cursos):** toda afirmación técnica con cifras, nombres de API/atributos, privilegios o licencias debe poder rastrearse a documentación oficial enlazada o a una medición en `artifacts/`. Los datos hipotéticos de ejercicios se marcan como *ilustrativos*. Antes de fijar un nombre de API, atributo o versión (MLflow, OpenTelemetry GenAI, Crossplane, Seldon, `llama.cpp`…) comprueba la versión vigente: cambian rápido. Un contenido generado por IA no cuenta como fuente.
 
 ## 6. Cómo añadir una práctica nueva
 
@@ -162,3 +162,8 @@ Activar una vez en *Settings → Pages → Build and deployment → Source: GitH
 - **Recursos locales:** Knative + Istio + Seldon + Argo + Crossplane a la vez consumen mucha RAM; en Kind elige una sola ruta de despliegue progresivo por práctica.
 - **Seldon Core** (v1/v2) se publica bajo BSL 1.1 desde enero de 2024: no lo uses en producción sin licencia comercial.
 - Las prácticas del Curso 2 aún no tienen código ni `artifacts/`; los bloques de código del temario son borradores hasta que se ejecuten con `verify.sh`. Aplican las mismas reglas de la sección 5 (sin resultados simulados, sin secretos, sin gasto implícito).
+
+## 9. Curso 3 · Edge-AI Sub-2-Bit (`B3-Edge`): entorno y límites
+
+- **Entorno:** CPU local `x86_64` (`16 GB+` RAM) + GTX 1050 `sm_61` (`2 GB`) + Android (`Termux` ARM64 NEON / Vulkan + `sysfs`), ejecutado en el repo compañero `edge-ternary-lab` (`0 €`; módulo `E6` opcional en Colab/Kaggle `T4`).
+- **Veracidad:** la tabla de Frontera de Pareto en `03-edge-ai-ternary-playbook.md` contiene estimaciones orientativas hasta rellenar con mediciones reales en `edge-ternary-lab/bench/results/`; los ejercicios numéricos marcan sus supuestos como *ilustrativos*.

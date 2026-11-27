@@ -265,6 +265,8 @@ Requisitos:
 **Alineación:** Oferta 2 (Core: FP8, INT4, AWQ, GPTQ, NVFP4/MXFP4, Speculative Decoding / EAGLE, quality regressions).
 **Duración estimada:** ~4 semanas (~20–24 micro-sprints de 20 min).
 
+> **Extensión práctica 0 € (`B3-Edge`, Curso 3):** Si quieres experimentar cuantización avanzada antes de alquilar `Cloud-3`, el [Playbook Edge-AI Sub-2-Bit (`03-edge-ai-ternary-playbook.md`)](03-edge-ai-ternary-playbook.md) conecta directamente con este bloque: `E0`–`E1` en paralelo a `B2`, `E2`–`E3` (Hadamard + GPTQ ternario `g128` en CPU sobre `Qwen3.5-2B` y `Gemma 4 E2B`) en paralelo a `B3.1`/`B3.4`, y `E4`–`E5` (kernels `__dp4a` CUDA `sm_61` + Vulkan Compute GLSL) tras cerrar `B3`.
+
 ### `[B3.1]` Fundamentos de Cuantización (PTQ, QAT, FP8, INT4, MXFP4/NVFP4)
 - **Tipo:** `[MOB]` (4 sprints)
 - **Depende de:** `B2.1` | **Desbloquea:** `B3.2`, `B3.4`
