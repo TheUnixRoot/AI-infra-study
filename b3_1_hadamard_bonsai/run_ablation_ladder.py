@@ -27,7 +27,14 @@ if str(SCRIPT_DIR) not in sys.path:
 from bench_suite import parse_ppl_output, query_gpu_info, run_llama_bench, run_perplexity  # noqa: E402
 
 
-def run_quantize_pq2(bin_dir: Path, src_f16: Path, dst_pq2: Path, raw_log: Path, force: bool = False) -> float:
+def run_quantize_pq2(
+    bin_dir: Path,
+    src_f16: Path,
+    dst_pq2: Path,
+    raw_log: Path,
+    force: bool = False,
+    embd_type: str = "pq2_0",
+) -> float:
     if dst_pq2.is_file() and dst_pq2.stat().st_size > 100_000_000 and not force:
         mb = round(dst_pq2.stat().st_size / (1024 ** 2), 1)
         print(f"[skip] {dst_pq2.name} already exists ({mb} MiB)", flush=True)
@@ -41,8 +48,8 @@ def run_quantize_pq2(bin_dir: Path, src_f16: Path, dst_pq2: Path, raw_log: Path,
 
     cmd = [
         str(bin_dir / "llama-quantize"),
-        "--output-tensor-type", "pq2_0",
-        "--token-embedding-type", "pq2_0",
+        "--output-tensor-type", embd_type,
+        "--token-embedding-type", embd_type,
         "--tensor-type", "ssm_alpha=f32",
         "--tensor-type", "ssm_beta=f32",
         str(src_f16),
@@ -60,21 +67,32 @@ def run_quantize_pq2(bin_dir: Path, src_f16: Path, dst_pq2: Path, raw_log: Path,
     return round(dst_pq2.stat().st_size / (1024 ** 2), 1)
 
 
-def run_cli_sample(bin_dir: Path, model_path: Path, prompt: str, threads: int, raw_log: Path) -> str:
+def run_cli_sample(
+    bin_dir: Path,
+    model_path: Path,
+    prompt: str,
+    threads: int,
+    raw_log: Path,
+    n_gen: int = 64,
+    greedy: bool = False,
+    ngl: int = 99,
+) -> str:
     env = os.environ.copy()
     env["LD_LIBRARY_PATH"] = f"{bin_dir}:{env.get('LD_LIBRARY_PATH', '')}".rstrip(":")
     cmd = [
         str(bin_dir / "llama-cli"),
         "-m", str(model_path),
         "-lm", "none",
-        "-ngl", "99",
+        "-ngl", str(ngl),
         "-fa", "on",
         "-c", "1024",
         "-t", str(threads),
         "-st",
         "-p", prompt,
-        "-n", "64",
+        "-n", str(n_gen),
     ]
+    if greedy:
+        cmd.extend(["--temp", "0", "--seed", "42"])
     proc = subprocess.run(cmd, env=env, capture_output=True, text=True)
     raw_log.write_text(
         f"CMD: {' '.join(cmd)}\nRC: {proc.returncode}\n\n--- STDOUT ---\n{proc.stdout}\n--- STDERR ---\n{proc.stderr}\n",
@@ -83,14 +101,27 @@ def run_cli_sample(bin_dir: Path, model_path: Path, prompt: str, threads: int, r
     )
     if proc.returncode != 0:
         return f"[error rc={proc.returncode}]"
-    # Extract reply after echoed prompt
     out = proc.stdout
     idx = out.find(prompt)
     if idx != -1:
         out = out[idx + len(prompt):]
     out = re.sub(r"\[\s*Prompt:.*?\]", "", out, flags=re.S)
     out = out.replace("Exiting...", "").strip()
-    return out[:360]
+    return out[:600]
+
+
+PROMPT_DUEL: tuple[tuple[str, str, str], ...] = (
+    ("code_py_quicksort", "code", "Write a concise Python function `binary_search(arr, target)` returning the index or -1. Output code only."),
+    ("code_py_lru", "code", "Write a Python class using collections.OrderedDict implementing get(k) and put(k,v) for a capacity-bounded LRU cache."),
+    ("code_sql_top3", "code", "Write an ANSI SQL query returning the top 3 departments by average employee salary from tables employees(id, dept_id, salary) and departments(id, name)."),
+    ("code_cpp_raii", "code", "Show a 10-line C++ RAII wrapper around FILE* with non-copyable semantics."),
+    ("json_gpu_spec", "json", "Return ONLY valid JSON with keys `gpu`, `vram_gb`, `quant` describing NVIDIA GTX 1050 2GB running PQ2_0."),
+    ("json_api_err", "json", "Return ONLY valid JSON representing an HTTP 429 error object with fields `error`, `retry_after_sec`, `details`."),
+    ("logic_trains", "logic", "A train travels 120 km in 1.5 hours, stops 30 minutes, then travels 90 km in 1 hour. What is its overall average speed in km/h?"),
+    ("logic_syllogism", "logic", "All tensors in weight_names are PQ2_0. `blk.0.ssm_out.weight` is in weight_names. Can `blk.0.ssm_out.weight` be F32? Answer Yes or No and explain in one sentence."),
+    ("tech_hadamard", "tech", "Explain in two sentences why Sylvester-Walsh-Hadamard rotation reduces quantization error in neural weights."),
+    ("tech_kv_cache", "tech", "Compute the KV cache size in MiB for 6 attention layers, 2 KV heads, head_dim 256, 4096 tokens in FP16."),
+)
 
 
 def main() -> int:
@@ -103,6 +134,8 @@ def main() -> int:
     parser.add_argument("--threads", type=int, default=4)
     parser.add_argument("--skip-identity", action="store_true", help="Skip F16 identity PPL checks")
     parser.add_argument("--force-quantize", action="store_true")
+    parser.add_argument("--only", nargs="*", default=None, help="Run only specific level(s), merging with existing JSON")
+    parser.add_argument("--run-prompt-duel", action="store_true", help="Also run 10-prompt code/JSON/logic duel")
     args = parser.parse_args()
 
     bin_prism = args.base_dir / ".build" / "bin-prism"
@@ -125,11 +158,19 @@ def main() -> int:
     f16_n2 = models_dir / "qwen3.5-2b-F16-N2.gguf"
     f16_n1_twn = models_dir / "qwen3.5-2b-F16-N1-twn.gguf"
     f16_n2_twn = models_dir / "qwen3.5-2b-F16-N2-twn.gguf"
+    f16_n3_gptq = models_dir / "qwen3.5-2b-F16-N3-gptq.gguf"
 
     pq2_n1 = models_dir / "qwen3.5-2b-N1-raw-PQ2_0.gguf"
     pq2_n2 = models_dir / "qwen3.5-2b-N2-hadamard-PQ2_0.gguf"
     pq2_n1_twn = models_dir / "qwen3.5-2b-N1-twn-PQ2_0.gguf"
     pq2_n2_twn = models_dir / "qwen3.5-2b-N2-twn-PQ2_0.gguf"
+    pq2_n3_gptq = models_dir / "qwen3.5-2b-N3-gptq-PQ2_0.gguf"
+
+    out_json = args.artifacts_dir / "b3_1_ablation_ladder.json"
+    existing_levels: dict[str, dict[str, object]] = {}
+    if out_json.is_file():
+        prev = json.loads(out_json.read_text(encoding="utf-8"))
+        existing_levels = {r["level"]: r for r in prev.get("levels", [])}
 
     identity_tests: dict[str, dict[str, object]] = {}
     for tag, mpath in (("F16_N1_identity", f16_n1), ("F16_N2_hadamard", f16_n2)):
@@ -147,51 +188,66 @@ def main() -> int:
         identity_tests[tag] = res
         print(f"  PPL={res['ppl']} (base={res['ppl_base']}) KLD={res['kld_mean']} SameTop={res['same_top_pct']}%", flush=True)
 
-    levels: list[dict[str, object]] = []
     prompt = "Explain what a hash table is in two sentences:"
 
     variants = [
-        ("N1_amax", "Qwen3.5-2B N1 Raw PQ2_0 (sin Hadamard, amax-RTN)", f16_n1, pq2_n1),
-        ("N2_amax", "Qwen3.5-2B N2 Hadamard + amax-RTN PQ2_0", f16_n2, pq2_n2),
-        ("N1_twn", "Qwen3.5-2B N1 sin Hadamard + TWN MSE-RTN PQ2_0", f16_n1_twn, pq2_n1_twn),
-        ("N2_twn", "Qwen3.5-2B N2 Hadamard + TWN MSE-RTN PQ2_0", f16_n2_twn, pq2_n2_twn),
+        ("N1_amax", "Qwen3.5-2B N1 Raw PQ2_0 (sin Hadamard, amax-RTN)", f16_n1, pq2_n1, 99, "pq2_0"),
+        ("N2_amax", "Qwen3.5-2B N2 Hadamard + amax-RTN PQ2_0", f16_n2, pq2_n2, 99, "pq2_0"),
+        ("N1_twn", "Qwen3.5-2B N1 sin Hadamard + TWN MSE-RTN PQ2_0", f16_n1_twn, pq2_n1_twn, 99, "pq2_0"),
+        ("N2_twn", "Qwen3.5-2B N2 Hadamard + TWN MSE-RTN PQ2_0", f16_n2_twn, pq2_n2_twn, 99, "pq2_0"),
+        ("N3_f16", "Qwen3.5-2B N3 Hadamard + GPTQ Ternario F16 (sin empaquetar)", f16_n3_gptq, f16_n3_gptq, 0, "f16"),
+        ("N3_gptq", "Qwen3.5-2B N3 Hadamard + GPTQ Ternario PQ2_0", f16_n3_gptq, pq2_n3_gptq, 99, "pq2_0"),
+        ("N3_gptq_q6k", "Qwen3.5-2B N3 Hadamard + GPTQ PQ2_0 (token_embd Q6_K)", f16_n3_gptq, models_dir / "qwen3.5-2b-N3-gptq-embdq6k-PQ2_0.gguf", 99, "q6_k"),
     ]
 
-    for lvl, label, src_f16, dst_pq2 in variants:
-        if not src_f16.is_file() and not dst_pq2.is_file():
+    only_set = set(args.only) if args.only else None
+    levels: list[dict[str, object]] = []
+
+    for lvl, label, src_f16, dst_model, ngl_eval, embd_type in variants:
+        if only_set is not None and lvl not in only_set:
+            if lvl in existing_levels:
+                levels.append(existing_levels[lvl])
+            continue
+        if not src_f16.is_file() and not dst_model.is_file():
             print(f"[skip] Missing {src_f16.name} for {lvl}", flush=True)
             continue
-        print(f"=== [quantize] {lvl}: {src_f16.name} -> {dst_pq2.name} ===", flush=True)
-        size_mib = run_quantize_pq2(
-            bin_prism, src_f16, dst_pq2,
-            raw_log=logs_dir / f"quant_{lvl}.log",
-            force=args.force_quantize,
-        )
-        print(f"  Quantized size: {size_mib} MiB", flush=True)
+        if src_f16 == dst_model:
+            size_mib = round(dst_model.stat().st_size / (1024 ** 2), 1)
+            print(f"=== [baseline F16] {lvl}: {dst_model.name} ({size_mib} MiB, ngl={ngl_eval}) ===", flush=True)
+        else:
+            print(f"=== [quantize] {lvl}: {src_f16.name} -> {dst_model.name} (embd={embd_type}) ===", flush=True)
+            size_mib = run_quantize_pq2(
+                bin_prism, src_f16, dst_model,
+                raw_log=logs_dir / f"quant_{lvl}.log",
+                force=args.force_quantize,
+                embd_type=embd_type,
+            )
+            print(f"  Quantized size: {size_mib} MiB", flush=True)
 
-        print(f"=== [bench] {lvl} (ngl=99) ===", flush=True)
+        print(f"=== [bench] {lvl} (ngl={ngl_eval}) ===", flush=True)
         bench = run_llama_bench(
-            bin_prism, dst_pq2, ngl=99, reps=args.reps, threads=args.threads,
-            tmp_dir=tmp_dir, raw_log=logs_dir / f"bench_{lvl}_pq2.log",
+            bin_prism, dst_model, ngl=ngl_eval, reps=args.reps, threads=args.threads,
+            tmp_dir=tmp_dir, raw_log=logs_dir / f"bench_{lvl}.log",
         )
-        print(f"=== [ppl] {lvl} (ngl=99, chunks={args.ppl_chunks}) ===", flush=True)
+        print(f"=== [ppl] {lvl} (ngl={ngl_eval}, chunks={args.ppl_chunks}) ===", flush=True)
         ppl = run_perplexity(
-            bin_prism, dst_pq2, corpus_path,
-            ngl=99, ctx=args.ppl_ctx, batch=128, chunks=args.ppl_chunks, threads=args.threads,
-            tmp_dir=tmp_dir, raw_log=logs_dir / f"ppl_{lvl}_pq2.log", kld_base=logits_base,
+            bin_prism, dst_model, corpus_path,
+            ngl=ngl_eval, ctx=args.ppl_ctx, batch=128, chunks=args.ppl_chunks, threads=args.threads,
+            tmp_dir=tmp_dir, raw_log=logs_dir / f"ppl_{lvl}.log", kld_base=logits_base,
         )
         sample = run_cli_sample(
-            bin_prism, dst_pq2, prompt, threads=args.threads,
-            raw_log=logs_dir / f"cli_{lvl}_pq2.log",
+            bin_prism, dst_model, prompt, threads=args.threads,
+            raw_log=logs_dir / f"cli_{lvl}.log",
+            ngl=ngl_eval,
         )
         row = {
             "level": lvl,
             "label": label,
-            "filename": dst_pq2.name,
+            "filename": dst_model.name,
             "file_mib": size_mib,
             "engine": "prism",
             "engine_rev": prism_rev,
-            "ngl": 99,
+            "ngl": ngl_eval,
             **bench,
             **ppl,
             "sanity_prompt": prompt,
@@ -214,8 +270,33 @@ def main() -> int:
         "levels": levels,
     }
     out_json = args.artifacts_dir / "b3_1_ablation_ladder.json"
-    out_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    out_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(f"[ok] Saved {out_json}", flush=True)
+
+    if args.run_prompt_duel:
+        duel_models = [
+            ("N0_Q4_K_M", models_dir / "Qwen3.5-2B-Q4_K_M.gguf"),
+            ("N2_twn", pq2_n2_twn),
+            ("N3_gptq", pq2_n3_gptq),
+            ("N4_Bonsai2", models_dir / "Ternary-Bonsai-2-2B-PQ2_0.gguf"),
+        ]
+        duel_rows = []
+        for pid, cat, ptext in PROMPT_DUEL:
+            row_p = {"id": pid, "category": cat, "prompt": ptext, "outputs": {}}
+            for mtag, mp in duel_models:
+                if not mp.is_file():
+                    continue
+                print(f"  [duel] {mtag} / {pid}...", flush=True)
+                row_p["outputs"][mtag] = run_cli_sample(
+                    bin_prism, mp, ptext, threads=args.threads,
+                    raw_log=logs_dir / f"duel_{mtag}_{pid}.log",
+                    n_gen=128, greedy=True,
+                )
+            duel_rows.append(row_p)
+        duel_json = args.artifacts_dir / "b3_1_prompt_duel.json"
+        duel_json.write_text(json.dumps({"gpu": gpu, "prism_rev": prism_rev, "prompts": duel_rows}, indent=2) + "\n", encoding="utf-8")
+        print(f"[ok] Saved {duel_json}", flush=True)
+
     return 0
 
 
