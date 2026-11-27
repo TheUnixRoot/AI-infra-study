@@ -158,6 +158,16 @@ Al cuantizar con `llama-quantize PQ2_0 --output-tensor-type pq2_0 --token-embedd
 3. **Empaquetado `PQ2_0` casi sin pérdida frente al baseline F16 (`N3 F16` vs `N3 PQ2_0`):** comparar `qwen3.5-2b-F16-N3-gptq.gguf` (`ngl=0`, `PPL = 58,3471`, `SameTop = 47,75 %`) contra `qwen3.5-2b-N3-gptq-PQ2_0.gguf` (`ngl=99`, `PPL = 58,3700`, `SameTop = 47,60 %`) demuestra que el empaquetado de 2 bits de `PQ2_0` introduce solo `+0,023` de PPL (`0,04 %`), mientras reduce el peso `7,3×` (`3600,8 → 493,3 MiB`) y acelera la decodificación **`15,0×` (`4,64 → 69,58 tok/s`)**. Proteger `ssm_alpha.weight` y `ssm_beta.weight` en `F32` iguala exactamente la topología `151 PQ2_0 + 169 F32` de `Bonsai 2`.
 4. **Duelo de 10 prompts (`--temp 0 --seed 42`, `artifacts/b3_1_prompt_duel.json`):** pese a rozar el `48 %` de coincidencia Top-1 token a token en WikiText-2, la ternarización PTQ sin ajuste de chat (`N3_gptq`, y también `N3_f16` en el *sanity prompt*) sigue rompiéndose en generación autorregresiva instruct: en 6 de 10 prompts (`code_py_lru`, `json_gpu_spec`, `json_api_err`, `logic_syllogism`, `tech_hadamard`, `tech_kv_cache`) emite `<|im_end|>` inmediato (`""`) tras `[Start thinking]`, y en los otros 4 entra en bucles repetitivos (`"1.\n1.\n..."`, `"10\n10\n..."`, eco del prompt SQL o `"1.5 hours, 1.5 hours..."`). Por contraste, `N0 (Q4_K_M)` y **`N4 (Bonsai 2 PQ2_0)`** completan `10/10` respuestas con razonamiento estructurado y código Python/SQL/C++ o JSON válido. Esto demuestra empíricamente qué parte aporta el **post-entrenamiento QAT en TPU** de PrismML (`58,37 → 25,48` en PPL y estabilidad completa en diálogo e instrucciones).
 
+### 4.4 Diagnóstico de fugas de `N3` y diseño de `N3A` (`N3A-1` / `N3A-2`)
+
+Para explicar el salto `58,37 → 25,48` frente a `Bonsai 2` antes de asumir que todo es QAT, se ejecutó un diagnóstico directo sobre `Qwen3.5-2B` y `N3`:
+
+- **Fugas descartadas (`F16 → PQ2_0` e identidad `ssm_out`):** `N3 F16` (`58,35`) vs `N3 PQ2_0` (`58,37`) confirma ausencia de doble redondeo; y `Ternary-Bonsai-2-2B-PQ2_0.gguf` usa exactamente el mismo contrato `prism.hadamard` (`v2`, `tied_output=True`, `block_size=512`, `150 weight_names`, sin `gdn_v_grouped`).
+- **El elefante de 508M (`token_embd.weight` atado) — medido en vivo:** restaurando únicamente `token_embd.weight` original rotado a `Q6_K` (`751,9 MiB`) manteniendo intactas las 150 matrices `PQ2_0` del decoder de `N3`, la PPL cae **`58,37 → 41,25`** (`Mean KLD 1,1433`, `SameTop 53,09 %`). Sin embargo, aislando `token_embd` sobre el decoder `FP16` limpio (`diag_token_embd_split`), `gptq_head` solo añade `+2,53` PPL (`13,45 → 15,98`: `+2,01` salida y `+0,32` entrada). El `+17,12` de penalización aparecía al calibrar `blk.0..23` sobre embeddings `FP16` limpios y ternarizar `token_embd` al final sin objetivo asimétrico.
+- **Implementación preparada en `gptq_ternary.py` (`N3A-1` y `N3A-2`, ejecución segura `memmap` en `D:` + `batch_seqs=2` + `row_chunk=8192`):**
+  1. **`--algo n3a1` (`N3A-1`):** cuantiza `token_embd` primero con damping de entrada (`--embd-damp 0.08`), calibra `blk.0..23` secuencialmente con objetivo asimétrico ridge frente a `X_fp16` (`--ridge 0.08`), y sube la calibración de `64` a `256 chunks` (`60 %` prosa/código + `40 %` trazas chat con `<|im_start|>`, `<|im_end|>`, `<think>`, `</think>` generadas por `prepare_n3a_calib.py` con `parse_special=true`).
+  2. **`--algo n3a2` (`N3A-2`):** añade `--actorder` con `--static-groups`, rejilla $\alpha^*$ ponderada por $\text{diag}(H)$ y refinamiento global monótono por coordenadas sobre el Hessiano completo `H` en `fp16` exacto compatible con `amax` de `PQ2_0`.
+
 ---
 
 ## 5. Ejecución reproducible y acompañante Android Termux
@@ -186,6 +196,17 @@ python b3_1_hadamard_bonsai/gptq_ternary.py --calib-chunks 64 --damp 0.01 --embd
   -i b3_1_hadamard_bonsai/models/Qwen3.5-2B-F16.gguf -o b3_1_hadamard_bonsai/models/qwen3.5-2b-F16-N3-gptq.gguf
 docker run --rm --gpus all -v "$PWD":/work ai-infra-study:llama-cuda12.6 \
   python3 -u /work/b3_1_hadamard_bonsai/run_ablation_ladder.py --run-prompt-duel
+
+# 6. Pipeline N3A (N3A-1 y N3A-2) de 1 en 1 tras tokenizar calib_n3a_chat.i32 con parse_special=true
+python b3_1_hadamard_bonsai/prepare_n3a_calib.py
+python b3_1_hadamard_bonsai/gptq_ternary.py --algo n3a1 --calib-chat b3_1_hadamard_bonsai/.build/tmp/calib_n3a_chat.i32 \
+  --chat-frac 0.40 --calib-chunks 256 --batch-seqs 2 --row-chunk 8192 --embd-damp 0.08 --ridge 0.08 \
+  -o b3_1_hadamard_bonsai/models/qwen3.5-2b-F16-N3A1-gptq.gguf
+python b3_1_hadamard_bonsai/gptq_ternary.py --algo n3a2 --calib-chat b3_1_hadamard_bonsai/.build/tmp/calib_n3a_chat.i32 \
+  --chat-frac 0.40 --calib-chunks 256 --batch-seqs 2 --row-chunk 8192 --embd-damp 0.08 --ridge 0.08 \
+  -o b3_1_hadamard_bonsai/models/qwen3.5-2b-F16-N3A2-gptq.gguf
+docker run --rm --gpus all -v "$PWD":/work ai-infra-study:llama-cuda12.6 \
+  python3 -u /work/b3_1_hadamard_bonsai/run_ablation_ladder.py --skip-identity --only N3A1_gptq N3A2_gptq --run-prompt-duel
 python b3_1_hadamard_bonsai/plot_results.py
 ```
 

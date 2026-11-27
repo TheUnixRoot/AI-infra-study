@@ -293,6 +293,10 @@ def main() -> int:
             bars_spec.append(("N3 F16\nGPTQ-Unp", lvl_map["N3_f16"]["ppl"], lvl_map["N3_f16"]["kld_mean"], lvl_map["N3_f16"]["same_top_pct"], "#8b5cf6"))
         if "N3_gptq" in lvl_map:
             bars_spec.append(("N3\nFWHT+GPTQ", lvl_map["N3_gptq"]["ppl"], lvl_map["N3_gptq"]["kld_mean"], lvl_map["N3_gptq"]["same_top_pct"], "#4f46e5"))
+        if "N3A1_gptq" in lvl_map:
+            bars_spec.append(("N3A-1\nAsym+Calib", lvl_map["N3A1_gptq"]["ppl"], lvl_map["N3A1_gptq"]["kld_mean"], lvl_map["N3A1_gptq"]["same_top_pct"], "#2563eb"))
+        if "N3A2_gptq" in lvl_map:
+            bars_spec.append(("N3A-2\nFull PTQ", lvl_map["N3A2_gptq"]["ppl"], lvl_map["N3A2_gptq"]["kld_mean"], lvl_map["N3A2_gptq"]["same_top_pct"], "#0891b2"))
         bars_spec.append(("N4\nBonsai2", n4_pq2["ppl"], n4_pq2["kld_mean"], n4_pq2["same_top_pct"], "#059669"))
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15.8, 5.6))

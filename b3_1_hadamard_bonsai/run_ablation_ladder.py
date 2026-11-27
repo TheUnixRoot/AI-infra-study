@@ -159,12 +159,16 @@ def main() -> int:
     f16_n1_twn = models_dir / "qwen3.5-2b-F16-N1-twn.gguf"
     f16_n2_twn = models_dir / "qwen3.5-2b-F16-N2-twn.gguf"
     f16_n3_gptq = models_dir / "qwen3.5-2b-F16-N3-gptq.gguf"
+    f16_n3a1_gptq = models_dir / "qwen3.5-2b-F16-N3A1-gptq.gguf"
+    f16_n3a2_gptq = models_dir / "qwen3.5-2b-F16-N3A2-gptq.gguf"
 
     pq2_n1 = models_dir / "qwen3.5-2b-N1-raw-PQ2_0.gguf"
     pq2_n2 = models_dir / "qwen3.5-2b-N2-hadamard-PQ2_0.gguf"
     pq2_n1_twn = models_dir / "qwen3.5-2b-N1-twn-PQ2_0.gguf"
     pq2_n2_twn = models_dir / "qwen3.5-2b-N2-twn-PQ2_0.gguf"
     pq2_n3_gptq = models_dir / "qwen3.5-2b-N3-gptq-PQ2_0.gguf"
+    pq2_n3a1_gptq = models_dir / "qwen3.5-2b-N3A1-gptq-PQ2_0.gguf"
+    pq2_n3a2_gptq = models_dir / "qwen3.5-2b-N3A2-gptq-PQ2_0.gguf"
 
     out_json = args.artifacts_dir / "b3_1_ablation_ladder.json"
     existing_levels: dict[str, dict[str, object]] = {}
@@ -198,6 +202,8 @@ def main() -> int:
         ("N3_f16", "Qwen3.5-2B N3 Hadamard + GPTQ Ternario F16 (sin empaquetar)", f16_n3_gptq, f16_n3_gptq, 0, "f16"),
         ("N3_gptq", "Qwen3.5-2B N3 Hadamard + GPTQ Ternario PQ2_0", f16_n3_gptq, pq2_n3_gptq, 99, "pq2_0"),
         ("N3_gptq_q6k", "Qwen3.5-2B N3 Hadamard + GPTQ PQ2_0 (token_embd Q6_K)", f16_n3_gptq, models_dir / "qwen3.5-2b-N3-gptq-embdq6k-PQ2_0.gguf", 99, "q6_k"),
+        ("N3A1_gptq", "Qwen3.5-2B N3A-1 (embd-first + asimetrico + 256c chat) PQ2_0", f16_n3a1_gptq, pq2_n3a1_gptq, 99, "pq2_0"),
+        ("N3A2_gptq", "Qwen3.5-2B N3A-2 (N3A-1 + actorder + alpha* + WLS global) PQ2_0", f16_n3a2_gptq, pq2_n3a2_gptq, 99, "pq2_0"),
     ]
 
     only_set = set(args.only) if args.only else None
@@ -274,17 +280,27 @@ def main() -> int:
     print(f"[ok] Saved {out_json}", flush=True)
 
     if args.run_prompt_duel:
+        duel_json = args.artifacts_dir / "b3_1_prompt_duel.json"
+        existing_duel: dict[str, dict[str, str]] = {}
+        if duel_json.is_file():
+            prev_d = json.loads(duel_json.read_text(encoding="utf-8"))
+            existing_duel = {p["id"]: dict(p.get("outputs", {})) for p in prev_d.get("prompts", [])}
+
         duel_models = [
             ("N0_Q4_K_M", models_dir / "Qwen3.5-2B-Q4_K_M.gguf"),
             ("N2_twn", pq2_n2_twn),
             ("N3_gptq", pq2_n3_gptq),
+            ("N3A1_gptq", pq2_n3a1_gptq),
+            ("N3A2_gptq", pq2_n3a2_gptq),
             ("N4_Bonsai2", models_dir / "Ternary-Bonsai-2-2B-PQ2_0.gguf"),
         ]
         duel_rows = []
         for pid, cat, ptext in PROMPT_DUEL:
-            row_p = {"id": pid, "category": cat, "prompt": ptext, "outputs": {}}
+            row_p = {"id": pid, "category": cat, "prompt": ptext, "outputs": dict(existing_duel.get(pid, {}))}
             for mtag, mp in duel_models:
                 if not mp.is_file():
+                    continue
+                if only_set is not None and mtag not in only_set and mtag in row_p["outputs"]:
                     continue
                 print(f"  [duel] {mtag} / {pid}...", flush=True)
                 row_p["outputs"][mtag] = run_cli_sample(
@@ -293,7 +309,6 @@ def main() -> int:
                     n_gen=128, greedy=True,
                 )
             duel_rows.append(row_p)
-        duel_json = args.artifacts_dir / "b3_1_prompt_duel.json"
         duel_json.write_text(json.dumps({"gpu": gpu, "prism_rev": prism_rev, "prompts": duel_rows}, indent=2) + "\n", encoding="utf-8")
         print(f"[ok] Saved {duel_json}", flush=True)
 
